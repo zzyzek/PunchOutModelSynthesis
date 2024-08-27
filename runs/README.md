@@ -21,6 +21,6 @@ Gallery
 | [![thkaspar_mt](thkaspar_mt/data/neondirt_128x128.png)](thkaspar_mt) |
 | [![thkaspar_mt](thkaspar_mt/data/neonsnow_128x128.png)](thkaspar_mt) |
 | [![thkaspar_mt](thkaspar_mt/data/neondungeon_128x128.png)](thkaspar_mt) |
-| [![lunarsignals_oarpgo](lunarsignals_oarpgo/data/oarpgo_wUbW3x3_256x256.png)](lunarsignals_oarpgo) |
+| [![lunarsignals_oarpgo](lunarsignals_oarpgo/data/oarpgo_256x256_wUbW3x3.png)](lunarsignals_oarpgo) |
 
 
