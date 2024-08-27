@@ -14,7 +14,7 @@ Gallery
 | [![adamatomic_mc-caves](adamatomic_mc-caves/data/mccaves_128x128.png)](adamatomic_mc-caves) |
 | [![guy_wangblob](guy_wangblob/data/wangblob_128x128.png)](guy_wangblob) |
 | [![piiixl_island](piiixl_island/data/island_128x128.png)](piiixl_island) |
-| [![pillMortal](pillMortal/data/pillMortal_tiled_128x128.png)](pm) |
+| [![pillMortal](pillMortal/data/pillMortal_128x128.png)](pillMortal) |
 | [![surt_blowharder](surt_blowharder/data/blowharder_128x128.png)](surt_blowharder) |
 | [![surt_psygen](surt_psygen/data/psygen_128x128.png)](surt_psygen) |
 | [![surt_vilenes](surt_vilenes/data/vilenes_128x128.png)](surt_vilenes) |
