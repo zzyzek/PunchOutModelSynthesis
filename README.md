@@ -37,7 +37,7 @@ LICENSE
 
 Unless otherwise stated, all source code is under a Creative Commons Zero 1.0 (CC0) license.
 
-![CC0](img/cc/cc0_88x31.png)
+![CC0](img/cc0_88x31.png)
 
 Third party libraries used were chosen to be libre/free licensed and should have license information
 listed in their headers.
