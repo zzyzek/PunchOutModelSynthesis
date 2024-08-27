@@ -1,9 +1,18 @@
 Adam Saltsman's Amarelo
 ===
 
+
 * [Amarelo on itch.io](https://adamatomic.itch.io/amarelo)
 
 Tileset license: CC0
+
+
+**WIP**
+
+POMS has major problems converging for the Amarelo tile set,
+so this run directory still needs some work to find example
+runs that reliably work.
+
 
 | Example | Sample Run |
 |---|---|
