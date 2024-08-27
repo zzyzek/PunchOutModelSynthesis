@@ -1,0 +1,57 @@
+#!/usr/bin/python3
+#
+# To the extent possible under law, the person who associated CC0 with
+# this work has waived all copyright and related or neighboring rights
+# to this work.
+#
+# You should have received a copy of the CC0 legalcode along with this
+# work. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+#
+
+import sys
+import re
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+
+TILESET_NAME = "Blowharder"
+
+def loadfile(fn):
+  a = []
+  with open(fn) as fp:
+    for line in fp:
+      line = line.strip()
+      if len(line)==0: continue
+      if line[0] == '#': continue
+
+      tok = re.split('  *', line);
+
+      v = []
+      for t in tok:
+        v.append( int(t) )
+      a.append(v)
+
+  nd_a = np.array(a)
+  return nd_a
+
+simple_taccl = loadfile("blowharder_simple.taccl")
+freq_taccl = loadfile("blowharder_freq.taccl")
+
+
+def outplot(nd_a, fn, title):
+  im = plt.imshow(nd_a, cmap='viridis', interpolation='nearest', norm=colors.SymLogNorm(linthresh=1, vmin=nd_a.min(), vmax=nd_a.max(), base=10))
+  plt.xlabel("x")
+  plt.ylabel("y")
+  plt.title(title)
+
+  plt.colorbar(im)
+
+  plt.savefig(fn)
+  plt.clf()
+
+
+outplot(simple_taccl, "blowharder_simple_taccl.png", TILESET_NAME + "\nSimple Tile Arc Consistent Correlation Length")
+outplot(freq_taccl, "blowharder_freq_taccl.png", TILESET_NAME + "\nFrequency Tile Arc Consistent Correlation Length")
+
+
+

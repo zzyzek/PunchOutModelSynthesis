@@ -1,0 +1,77 @@
+#!/usr/bin/python3
+#
+# To the extent possible under law, the person who associated CC0 with
+# this work has waived all copyright and related or neighboring rights
+# to this work.
+#
+# You should have received a copy of the CC0 legalcode along with this
+# work. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+#
+
+import sys
+import re
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+
+
+
+
+def loadfile(fn):
+  #for line in sys.stdin:
+  a = []
+  with open(fn) as fp:
+    for line in fp:
+      line = line.strip()
+      if len(line)==0: continue
+      if line[0] == '#': continue
+
+      tok = re.split('  *', line);
+
+      v = []
+      for t in tok:
+        v.append( int(t) )
+      a.append(v)
+
+  nd_a = np.array(a)
+  return nd_a
+
+simple_accl = loadfile("neondirt_simple.accl")
+freq_accl = loadfile("neondirt_freq.accl")
+
+simple_0_accl = loadfile("neondirt_simple_0.accl")
+simple_e0m_accl = loadfile("neondirt_simple_edge_0m.accl")
+simple_em0_accl = loadfile("neondirt_simple_edge_m0.accl")
+simple_emn_accl = loadfile("neondirt_simple_edge_mn.accl")
+simple_enm_accl = loadfile("neondirt_simple_edge_nm.accl")
+
+simple_dungeon_accl = loadfile("neondungeon_simple.taccl")
+freq_dungeon_accl = loadfile("neondungeon_freq.taccl")
+
+def outplot(nd_a, fn, title):
+  #im = plt.imshow(nd_a, cmap='magma', interpolation='nearest')
+  im = plt.imshow(nd_a, cmap='viridis', interpolation='nearest', norm=colors.SymLogNorm(linthresh=1, vmin=nd_a.min(), vmax=nd_a.max(), base=10))
+  plt.xlabel("x")
+  plt.ylabel("y")
+  plt.title(title)
+
+  plt.colorbar(im)
+
+  plt.savefig(fn)
+  plt.clf()
+
+
+outplot(simple_accl, "neondirt_simple_accl.png", "Dirt Micro Tileset\nSimple Arc Consistent Correlation Length")
+outplot(freq_accl, "neondirt_freq_accl.png", "Dirt Micro Tileset\nFrequency Arc Consistent Correlation Length")
+
+
+outplot(simple_0_accl, "neondirt_simple_0.png", "Dirt Micro Tileset\nSimple (0) Arc Consistent Correlation Length")
+outplot(simple_e0m_accl, "neondirt_simple_edge_0m.png", "Dirt Micro Tileset\nSimple (e0m) Arc Consistent Correlation Length")
+outplot(simple_em0_accl, "neondirt_simple_edge_m0.png", "Dirt Micro Tileset\nSimple (em0) Arc Consistent Correlation Length")
+outplot(simple_enm_accl, "neondirt_simple_edge_nm.png", "Dirt Micro Tileset\nSimple (enm) Arc Consistent Correlation Length")
+outplot(simple_emn_accl, "neondirt_simple_edge_mn.png", "Dirt Micro Tileset\nSimple (emn) Arc Consistent Correlation Length")
+
+
+outplot(simple_dungeon_accl, "neondungeon_simple_taccl.png", "Dungeon Micro Tileset\nSimple Tile Arc Consistent Correlation Length")
+outplot(freq_dungeon_accl, "neondungeon_freq_taccl.png", "Dungeon Micro Tileset\nFrequency Tile Arc Consistent Correlation Length")
+

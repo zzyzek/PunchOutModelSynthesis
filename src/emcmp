@@ -1,0 +1,19 @@
+#!/bin/bash
+
+
+em++ \
+  -O2 \
+  -s LLD_REPORT_UNDEFINED \
+  ./yajl-2.1.1/lib/libyajl.a \
+  -I ./yajl-2.1.1/include \
+  tiny_obj_loader.c \
+  main_poms.cpp \
+  auxExport.cpp \
+  pomsAlgorithm.cpp \
+  pomsConstraintPropagate.cpp \
+  pomsDebug.cpp \
+  pomsEntropy.cpp \
+  pomsExport.cpp \
+  pomsLoad.cpp \
+  pomsRegionQuilting.cpp \
+  -o poms.js

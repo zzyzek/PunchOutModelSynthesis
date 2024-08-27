@@ -1,0 +1,16 @@
+#!/bin/bash
+#
+# LICENSE: CC0
+#
+
+
+pushd img
+
+for x in `ls *.png`; do
+  echo $x
+  b=`basename $x .png`
+  convert $x $b.svg
+  ../bin/xmltojson < $b.svg > $b.json
+done
+
+popd

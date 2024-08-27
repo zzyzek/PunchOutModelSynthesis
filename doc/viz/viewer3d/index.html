@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset="UTF-8">
+
+    <title>Punch Out Model Synthesis 3D Viewer</title>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three" : "./js/three.module.js",
+          "three_OBJLoader" : "./js/OBJLoader.js",
+          "three_STLLoader" : "./js/STLLoader.js",
+          "three_MTLLoader" : "./js/MTLLoader.js",
+          "three_OrbitControls" : "./js/OrbitControls.js",
+          "app": "./js/app.js"
+        }
+      }
+    </script>
+
+    <script type="module">
+      import * as app from "app";
+      window.app = app;
+
+      app.init();
+    </script>
+
+  </head>
+
+  <body style='margin:0;'></body>
+</html>
+

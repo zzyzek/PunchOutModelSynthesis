@@ -1,0 +1,87 @@
+#!/usr/bin/python3
+#
+# LICENSE: CC0
+#
+
+import os,sys,re
+
+if len(sys.argv) < 2:
+  print("provide input svg to alter")
+  sys.exit(-1)
+
+IFN=sys.argv[1]
+
+MASK_TEMPLATE = """<mask id="##ID##">
+  <rect x="##X##" y="##Y##" width="##W##" height="##H##" fill="white" />
+  <polygon points="##PNTS##" fill="#7f7f7f" />
+</mask>
+"""
+
+mask_lines = []
+
+lines = []
+
+mask_insertion_idx = -1
+image_idx = []
+mask_ids = []
+
+with open(IFN) as fp:
+  for line in fp:
+
+    line = line.strip()
+    lines.append(line)
+
+    if re.search( r'<g id="graph0" ', line):
+      mask_insertion_idx = len(lines)-1
+      continue
+    if not re.search( r'<image ', line ): continue
+
+    image_idx.append( len(lines)-1 )
+
+    re_w = re.search( r' width="(\d+)', line )
+    re_h = re.search( r' height="(\d+)', line )
+    re_x = re.search( r' x="([^"]*)"', line )
+    re_y = re.search( r' y="([^"]*)"', line )
+
+    re_png = re.search( r'href="img/(\d+)\.png"', line )
+
+    if (not re_w) or (not re_h) or (not re_x) or (not re_y) or (not re_png):
+      print("ERROR")
+      sys.exit(-1)
+
+    w = float(re_w.group(1))
+    h = float(re_h.group(1))
+    x = float(re_x.group(1))
+    y = float(re_y.group(1))
+
+    mask_id = "tilemask" + re_png.group(1)
+
+    pnts = [ x+(w/2),y, x+w,y, x+w,y+h, x,y+h, x,y+(h/2), x+(w/2),y+(h/2) ]
+    pnts_str = ""
+    for i in range(0,len(pnts),2):
+      pnts_str += " " + str(pnts[i]) + "," + str(pnts[i+1])
+
+    mask_svg = MASK_TEMPLATE
+    mask_svg = re.sub( '##X##', str(x), mask_svg )
+    mask_svg = re.sub( '##Y##', str(y), mask_svg )
+    mask_svg = re.sub( '##W##', str(w/2), mask_svg )
+    mask_svg = re.sub( '##H##', str(h/2), mask_svg )
+    mask_svg = re.sub( '##ID##', mask_id, mask_svg )
+    mask_svg = re.sub( '##PNTS##', pnts_str, mask_svg )
+
+    mask_lines.append(mask_svg)
+
+    mask_ids.append( mask_id )
+
+for idx in range(len(mask_ids)):
+  mask_id = mask_ids[idx]
+  m = mask_lines[idx]
+  new_img_svg = re.sub( r'<image ', "<image mask=\"url(#" + mask_id + ")\" ", lines[ image_idx[idx] ])
+  lines[ image_idx[idx] ] = new_img_svg
+
+
+for idx in range(len(lines)):
+  print(lines[idx])
+  if idx==mask_insertion_idx:
+    print( "\n".join(mask_lines) )
+

@@ -1,0 +1,20 @@
+#!/bin/bash
+#
+# LICENSE: CC0
+#
+
+n=128
+n2=`echo "$n / 2" | bc `
+
+../../../bin/poms.ir \
+  -s $n,$n,1 \
+  -P $n2,$n2,0 \
+  -C ../data/mccaves_poms.json > ./mccaves_simple.taccl
+
+../../../bin/poms.ir \
+  -F 1 \
+  -s $n,$n,1 \
+  -P $n2,$n2,0 \
+  -C ../data/mccaves_poms.json > ./mccaves_freq.taccl
+  
+ 

@@ -1,0 +1,40 @@
+#!/usr/bin/python3
+#
+# To the extent possible under law, the person who associated CC0 with
+# this work has waived all copyright and related or neighboring rights
+# to this work.
+#
+# You should have received a copy of the CC0 legalcode along with this
+# work. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+#
+
+import sys
+import re
+import numpy as np
+import matplotlib.pyplot as plt
+
+a = []
+
+b = np.zeros(shape=(256,256))
+
+for line in sys.stdin:
+  line = line.strip()
+  if len(line)==0: continue
+  if line[0] == '#': continue
+
+  tok = re.split('  *', line);
+
+  v = []
+  for t in tok:
+    v.append( int(t) )
+  a.append(v)
+
+nd_a = np.array(a)
+
+im = plt.imshow(nd_a, cmap='magma', interpolation='nearest')
+plt.ylabel("y")
+plt.xlabel("x")
+plt.title("Vile-NES Tileset\nArc Consistent Correlation Length")
+
+plt.colorbar(im)
+plt.show()

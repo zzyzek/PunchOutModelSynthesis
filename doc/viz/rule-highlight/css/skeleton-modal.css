@@ -1,0 +1,92 @@
+/*
+ * The MIT License (MIT)
+ *
+ * Copyright (c) 2023 Paul McClean (https://codepen.io/paulmcclean/pen/YGXWQY)
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ */
+
+.modal {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.65);
+  visibility: hidden;
+  backface-visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.15s ease-in-out;
+}
+.modal.modal-open {
+  visibility: visible;
+  backface-visibility: visible;
+  opacity: 1;
+  z-index: 1;
+}
+.modal .modal-inner {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.modal .modal-inner .modal-content {
+  background-color: white;
+  max-width: 35em;
+  padding: 1em 1.5em;
+  position: relative;
+  margin: 2em;
+  box-shadow: 0px 0px 10px 0px rgba(0, 0, 0, 0.35);
+}
+.modal .modal-inner .modal-content .modal-close-icon {
+  position: absolute;
+  right: 1.5em;
+}
+.modal .modal-inner .modal-content .modal-content-inner {
+  padding-right: 2em;
+}
+.modal .modal-inner .modal-content .modal-content-inner h1, .modal .modal-inner .modal-content .modal-content-inner h2, .modal .modal-inner .modal-content .modal-content-inner h3, .modal .modal-inner .modal-content .modal-content-inner h4, .modal .modal-inner .modal-content .modal-content-inner h5, .modal .modal-inner .modal-content .modal-content-inner h6 {
+  margin-bottom: 0.25em;
+}
+.modal .modal-inner .modal-content .modal-content-inner p {
+  margin-bottom: 1em;
+}
+.modal .modal-inner .modal-content .modal-buttons-seperator {
+  margin: 1.5em 0;
+  margin-top: 0;
+}
+.modal .modal-inner .modal-content .modal-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  align-items: center;
+}
+.modal .modal-inner .modal-content .modal-buttons button {
+  margin-left: 1em;
+}
+.modal .modal-inner .modal-content .modal-buttons button:first-child {
+  margin-left: 0;
+}
+
+.demo-container {
+  text-align: center;
+}

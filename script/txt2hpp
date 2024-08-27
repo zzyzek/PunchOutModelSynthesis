@@ -1,0 +1,21 @@
+#!/bin/bash
+
+ifn="$1"
+v="$2"
+
+if [[ "$ifn" == '' ]] ; then
+  echo "provide text file"
+  exit -1
+fi
+
+if [[ "$v" == "" ]] ; then
+  v="data"
+fi
+
+echo -n "char $v[] = "
+cat "$ifn" | \
+  sed 's/\\/\\\\/g' | \
+  sed 's/"/\\"/g' | \
+  sed 's/^/"/g' | \
+  sed 's/$/\\n"/g'
+echo ";"

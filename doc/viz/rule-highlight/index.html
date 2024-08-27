@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+
+<!-- LICENSE: cc0 -->
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Tile Rule Highlighter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/skeleton.css">
+  <link rel="stylesheet" href="css/skeleton-modal.css">
+  <link rel="stylesheet" href="css/custom.css">
+  <link rel="icon" type="image/png" href="img/favicon.ico">
+
+  <script type='text/javascript' src='js/skeleton-modal.js'></script>
+
+  <script type='text/javascript' src='js/localFileUpload.js'></script>
+  <script type='text/javascript' src='js/img2tile.js'></script>
+
+  <script type="text/javascript" src="js/pixi.js"></script>
+  <script type="text/javascript" src="js/pixiapp.js"></script>
+
+  <script type='text/javascript' src='js/trh.js'></script>
+
+
+<script>
+
+  var g_poms = {};
+  var g_fu = {
+    "fileUpload": {},
+    "tile_stride": [16,16],
+    "tile_window":[32,32]
+  };
+
+  var _init_counter = 0;
+
+  function _init0() { _init_counter++; if (_init_counter>=2) { _init2(); } }
+  function _init1() { _init_counter++; if (_init_counter>=2) { _init2(); } }
+  function _init2() {
+    hiddenExemplarOnLoad("img/rrti.png", 16,32);
+  }
+
+
+  function imgUploaded() {
+    console.log("new image uploaded...");
+
+    let ui_stride_x = document.getElementById("ui_tile_stride_x");
+    let ui_window_x = document.getElementById("ui_tile_window_x");
+
+    let stride_x = parseInt(ui_stride_x.value);
+    let window_x = parseInt(ui_window_x.value);
+
+    // pixi will cache the image based on the _pixiId,
+    // so delete it here so we can actually reload the
+    // image
+    //
+    let eimg = document.getElementById("ui_exemplarImage");
+    let timg = document.getElementById("ui_tileset");
+    if ("_pixiId" in eimg) { delete eimg["_pixiId"]; }
+    if ("_pixiId" in timg) { delete timg["_pixiId"]; }
+
+    eimg.src = g_fu.fileUpload.img.src;
+    eimg.onload = (function(_src,_sx,_wx) {
+      return function() { hiddenExemplarOnLoad( _src, _sx, _wx); };
+    })(eimg.src, stride_x, window_x);
+
+    let modal = document.querySelector('.modal');
+    modal.classList.toggle('modal-open');
+
+
+  }
+
+  function hiddenExemplarOnLoad(_src,_tile_stride,_win) {
+
+    g_fu.tile_stride[0] = _tile_stride;
+    g_fu.tile_stride[1] = _tile_stride;
+
+    g_fu.tile_window[0] = _win;
+    g_fu.tile_window[1] = _win;
+
+    let _timg = document.getElementById("ui_tileset");
+
+    _timg.onload = function() {
+      let __eimg = document.getElementById("ui_exemplarImage");
+      let __timg = document.getElementById("ui_tileset");
+      pixi_load( __eimg, __timg, g_poms );
+    };
+
+    //DEBUG
+    console.log("heol:",g_fu.tile_stride[0], g_fu.tile_window[0]);
+
+    _runImg2Tile(g_fu.tile_stride[0], g_fu.tile_window[0]);
+
+  }
+
+  function imgOptionChange() {
+    let ele = document.getElementById("ui_imgOption");
+    let opt = ele.value;
+
+    let opt_map = {
+      "rrti": { "src": "img/rrti.png",                        "tile_stride": [16,16], "tile_window": [32,32] },
+      "pm"  : { "src": "img/pill_mortal_map0.png",            "tile_stride": [8 ,8 ], "tile_window": [16,16] },
+      "oloz": { "src": "img/lunarsignals_oloz.png",           "tile_stride": [16,16], "tile_window": [32,32] },
+      "smb" : { "src": "img/adamatomic-surt-kenney_smb.png",  "tile_stride": [8 ,8 ], "tile_window": [16,16] }
+    };
+
+    if (!(opt in opt_map)) { return; }
+
+    let eimg = document.getElementById("ui_exemplarImage");
+    let timg = document.getElementById("ui_tileset");
+
+    // pixi will cache the image based on the _pixiId,
+    // so delete it here so we can actually reload the
+    // image
+    //
+    if ("_pixiId" in eimg) { delete eimg["_pixiId"]; }
+    if ("_pixiId" in timg) { delete timg["_pixiId"]; }
+
+    let img = document.getElementById("ui_exemplarImage");
+    //img.onload = (function(_src, _tile_stride, _win) { return function() {
+    img.onload = (function(x,y,z) {
+      return function() {
+        hiddenExemplarOnLoad(x,y,z);
+      };
+    })(opt_map[opt].src, opt_map[opt].tile_stride[0], opt_map[opt].tile_window[0]);
+
+    img.src = opt_map[opt].src;
+
+  }
+
+  function init() {
+    g_fu.fileUpload = new LocalFileUpload("ui_fileButton", "ui_exemplarImage", imgUploaded);
+    _runImg2Tile(g_fu.tile_stride[0], g_fu.tile_window[0]);
+    pixi_init();
+  }
+
+
+  function supertile_mouseover(tileid) {
+    g_app.supertile_id = tileid;
+    draw_rects_supertile();
+  }
+
+  function supertile_mouseout(tileid) {
+    g_app.supertile_id = -1;
+    draw_rects_supertile();
+  }
+
+  var g_supertile_data;
+
+  function _runImg2Tile(stride, st_size) {
+    stride = ( ((typeof stride)==="undefined") ? 16 : stride );
+    st_size = ( ((typeof st_size)==="undefined") ? 32 : st_size);
+    g_info.stride = [stride,stride];
+    g_info.supertile_dim = [st_size, st_size];
+    g_info.img = imgData("ui_exemplarImage");
+
+    console.log("runimg2tile:", g_info.img);
+
+    // experimental
+    flatten_img_data(g_info.img.data, 10);
+
+    console.log("colors now:", color_count(g_info.img.data));
+
+    g_poms = img2tile_run(g_info);
+    imgDataLoad( g_poms.tileset_png, "ui_tileset")
+
+    let stile_data = [];
+
+    for (let ii=0; ii<g_poms.tile_name.length; ii++) {
+      stile_data.push([]);
+    }
+
+    for (let _key in g_poms.supertile_lib) {
+      let stile_id = g_poms.supertile_lib[_key].id;
+      stile_data[stile_id] = g_poms.supertile_lib[_key].data;
+    }
+
+    let html_stile = document.getElementById("ui_supertile");
+    html_stile.innerHTML = "";
+
+    let row = undefined;
+    let col_count=0;
+
+    for (let tile_id=0; tile_id<g_poms.tile_name.length; tile_id++) {
+
+      if ((tile_id%12) == 0) {
+        if (col_count > 0) { html_stile.appendChild(row); }
+        col_count=0;
+        row = document.createElement("row");
+      }
+
+      let div = document.createElement("div");
+      div.classList.add("one", "column");
+
+      let img = document.createElement("img");
+      //img.src = b64PNG( 32,32, stile_data[tile_id] );
+      img.src = b64PNG( g_poms.supertile_dim[0],g_poms.supertile_dim[1], stile_data[tile_id] );
+
+      img.classList.add("img-mask");
+
+      img.onmouseover = (function(_tile_id) { return function() {
+        supertile_mouseover(_tile_id);
+      };
+      })(tile_id);
+
+      img.onmouseout = (function(_tile_id) { return function() {
+        supertile_mouseout(_tile_id);
+      };
+      })(tile_id);
+
+      div.appendChild(img);
+      row.appendChild(div);
+
+      col_count++;
+    }
+
+    if (col_count > 0) {
+      for (let ii=col_count; ii<12; ii++) {
+        let div = document.createElement("div");
+        div.classList.add("one", "column");
+        row.appendChild(div);
+      }
+      html_stile.appendChild(row);
+    }
+
+    g_supertile_data = stile_data;
+  }
+
+</script>
+
+
+
+</head>
+<body>
+
+  <!--
+     __  __  ___  ___   _   _
+    |  \/  |/ _ \|   \ /_\ | |
+    | |\/| | (_) | |) / _ \| |__
+    |_|  |_|\___/|___/_/ \_\____|
+  -->
+
+  <!-- modal for custom exemplar image upload -->
+
+  <div class="modal modal-closed">
+    <div class="modal-inner">
+      <div class="modal-content">
+        <div class="modal-close-icon">
+          <!-- <a href="javascript:void(0)" class="close-modal"><i class="fa fa-times" aria-hidden="true"></i></a> -->
+          <a href="javascript:void(0)" class="close-modal">X</a>
+        </div>
+        <div class="modal-content-inner">
+          <h4>Upload Custom Exemplar Image</h4>
+          <p>You can upload your own image source. </p>
+
+          <!--
+            tile stride
+            -->
+
+          <div class='row'>
+            <div class='three columns'> <input type='text' style='width:100%;' id='ui_tile_stride_x' value='8' onchange='uiULVal("ui_tile_stride");' > </div>
+            <div class='three columns'>
+              <input
+                type='text'
+                style='width:100%; color:rgba(0,0,0,0.5); background-color:rgba(0,0,0,0.125);'
+                id='ui_tile_stride_y'
+                value='8'
+                disabled >
+            </div>
+            <div class='two columns' style='vertical-align:middle; ' >
+              <input id='ui_tile_stride_locked' style='margin-top:20%;' type="checkbox" checked onclick='uiULCheckbox("ui_tile_stride");' >
+              <img src='img/icon_lock.svg' style='width:25%;'></img>
+            </div>
+            <div class='four columns' style='vertical-align:middle;' > <div style='margin-top:5%;'> tile stride  </div> </div>
+          </div>
+
+          <!--
+            tile window
+            -->
+
+          <div class='row'>
+            <div class='three columns'> <input type='text' id='ui_tile_window_x' style='width:100%;' value='16' onchange='uiULVal("ui_tile_window");' > </div>
+            <div class='three columns'>
+              <input
+                type='text'
+                id='ui_tile_window_y'
+                style='width:100%; color:rgba(0,0,0,0.5); background-color:rgba(0,0,0,0.125);'
+                value='16'
+                disabled >
+            </div>
+            <div class='two columns'>
+              <input id='ui_tile_window_locked' type='checkbox' style='margin-top:20%;' checked onclick='uiULCheckbox("ui_tile_window");' >
+              <img src='img/icon_lock.svg' style='width:25%;'></img>
+            </div>
+
+            <div class='four columns'> <div style='margin-top:5%;'>supertile window</div> </div>
+          </div>
+
+          <!--
+            tile offset
+            -->
+
+          <div class='row'>
+            <div class='three columns'> <input type='text' id='ui_tile_offset_x' style='width:100%;' value='0' onchange='uiULVal("ui_tile_offset");' > </div>
+            <div class='three columns'>
+              <input
+              type='text'
+              id='ui_tile_offset_y'
+              style='width:100%; color:rgba(0,0,0,0.5); background-color:rgba(0,0,0,0.125);'
+              value='0'
+              disabled
+              >
+            </div>
+            <div class='two columns'>
+              <input id='ui_tile_offset_locked' style='margin-top:20%;' type='checkbox' checked onclick='uiULCheckbox("ui_tile_offset");' >
+              <img src='img/icon_lock.svg' style='width:25%;'></img>
+            </div>
+            <div class='four columns'> <div style='margin-top:5%;'> offset </div>  </div>
+          </div>
+
+
+        </div>
+
+          <!-- <label class='button shimmer' id='ui_uploadLabel' style='margin-top:5%; background-color:#afafaf; pointer-events:none;' > -->
+          <label class='button' id='ui_uploadLabel' style='margin-top:5%;' >
+            <input style='display:none;' type="file" id="ui_fileButton" />
+            choose image
+          </label>
+
+
+        <hr class="modal-buttons-seperator">
+
+        <div class="modal-buttons">
+            <button class="button close-modal" style='justify-content:left;'>Cancel</button>
+            <!-- <button class="button close-modal">OK</button> -->
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+  <!--
+
+    ******************
+    ******************
+    ******************
+    -->
+
+  <div class="container">
+
+    <img id='ui_debug'></img>
+
+    <div class="row">
+      <div class="six columns" style="margin-top: 2%">
+        <h4>Tile Rule Highlighter</h4>
+      </div>
+
+      <div class="six columns">
+
+        <!--
+        <label class='button shimmer' id='ui_uploadLabel' style='margin-top:5%; background-color:#afafaf; pointer-events:none;' >
+          <input style='display:none;' type="file" onclick='deactivateShimmer("ui_uploadLabel");' id="ui_fileButton" disabled />
+          upload image
+        </label>
+        -->
+        <button id='ui_uploadButton' class='button open-modal shimmer' onclick='deactivateShimmer("ui_uploadButton");' > upload </button>
+
+      </div>
+
+
+    </div>
+
+    <hr>
+
+    <div id='ui_pixi_location'>
+    </div>
+
+    <div class='row'>
+      <div class='six columns'> <img hidden onload='_init0();' id='ui_exemplarImage' style='pixelated' src='img/rrti.png'></img> </div>
+      <div class='six columns'> <img hidden onload='_init1();' id='ui_tileset'></img> </div>
+    </div>
+
+    <div class='row'>
+      <div class='six columns'> <b>Exemplar Image (Source)</b> </div>
+      <div class='six columns'> <b>Tile Set</b> </div>
+    </div>
+
+    <div class='row'>
+      <div id='ui_exemplarImage_x' class='one columns' style='color:rgba(0,0,0,0.5);' > &nbsp; </div>
+      <div id='ui_exemplarImage_y' class='one columns' style='color:rgba(0,0,0,0.5);' > &nbsp;  </div>
+      <div class='four columns'> &nbsp; </div>
+      <div id='ui_tileset_x' class='one columns' style='color:rgba(0,0,0,0.5);' > &nbsp; </div>
+      <div id='ui_tileset_y' class='one columns' style='color:rgba(0,0,0,0.5);' > &nbsp; </div>
+      <div class='four columns'> &nbsp; </div>
+    </div>
+
+    <div class='row'>
+      <div class='twelve columns'> &nbsp; </div>
+    </div>
+
+    <div class='row'>
+
+      <div class='six columns'>
+
+        <select name='img_option' id='ui_imgOption' onchange='imgOptionChange();'>
+          <option value=''>--Predefined Exemplar Images--</option>
+          <option value='rrti'>River Runs Through It</option>
+          <option value='pm'>Pill Mortal</option>
+          <option value='smb'>Shoggot's Maledictive Blit</option>
+          <option value='oloz'>Occult Lore of Zin</option>
+        </select>
+
+      </div>
+
+      <div class='six columns'> <span id="ui_locationInfo"> &nbsp; </span> </div>
+
+    </div>
+
+
+    <hr>
+
+    <!--
+      ___ _   _ ___ ___ ___ _____ ___ _    ___
+     / __| | | | _ \ __| _ \_   _|_ _| |  | __|
+     \__ \ |_| |  _/ _||   / | |  | || |__| _|
+     |___/\___/|_| |___|_|_\ |_| |___|____|___|
+     -->
+
+
+    <h5>Supertiles</h5>
+    <div id='ui_supertile'></div>
+
+  </div> <!-- container -->
+
+</body>
+<script>
+  init();
+
+// UNTIL WE GET SLIDERS
+//deactivateShimmer("ui_uploadLabel");
+
+skeleton_modal_init();
+
+  //pixi_init();
+</script>
+</html>

@@ -1,0 +1,19 @@
+#!/bin/bash
+#
+# LICENSE: CC0
+#
+
+
+tfn=`mktemp`
+./create-rule-graph  > $tfn.dot
+sfdp -T svg $tfn.dot > $tfn.svg
+inkscape -d 300 -o $tfn.eps $tfn.svg
+./post-process-svg $tfn.svg > $tfn.svg1
+cp $tfn.svg1 pm_rule.svg
+inkscape -d 300 -w 4096 -h 4096 pm_rule.svg -o pm_rule.png
+
+rm -f $tfn $tfn.dot $tfn.svg $tfn.eps $tfn.svg1
+
+echo "pm_rule.svg"
+echo "pm_rule.png"
+

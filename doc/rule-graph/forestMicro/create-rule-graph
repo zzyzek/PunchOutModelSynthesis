@@ -1,0 +1,112 @@
+#!/usr/bin/python3
+#
+# LICENSE: CC0
+#
+
+import re,os,sys,json
+import random
+
+POMS_FN = "./data/rrti_poms.json"
+TILEMAP_FN = "./data/rrti_tilemap.json"
+
+NODE_TEMPLATE = """##NAME## [fontsize=1 margin=0 shape=none ##POS## label=<
+      <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0">
+      <TR CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TD BGCOLOR="none"   PORT="p00" WIDTH="1" HEIGHT="1" BORDER="0" CELLPADDING="0" CELLSPACING="0" >&nbsp;</TD>
+        <TD BGCOLOR="none" PORT="u" WIDTH="48" HEIGHT="1" BORDER="0" CELLPADDING="0" CELLSPACING="0" >&nbsp;</TD>
+        <TD BGCOLOR="none"   PORT="p20" WIDTH="1" HEIGHT="1" BORDER="0" CELLPADDING="0" CELLSPACING="0" >&nbsp;</TD>
+      </TR>
+      <TR CELLPADDING="0" CELLSPACING="0" BORDER="0" CELLBORDER="0">
+        <TD BGCOLOR="none" PORT="l" WIDTH="1" HEIGHT="48" BORDER="0" CELLPADDING="0" CELLSPACING="0" FIXEDSIZE="TRUE">&nbsp;</TD>
+        <TD BGCOLOR="none" PORT="p11" WIDTH="48" HEIGHT="48" BORDER="0" CELLPADDING="0" CELLSPACING="0" FIXEDSIZE="TRUE"><IMG SCALE="BOTH" SRC="##IMG##" /></TD>
+        <TD BGCOLOR="none" PORT="r" WIDTH="1" HEIGHT="48" BORDER="0" CELLPADDING="0" CELLSPACING="0" FIXEDSIZE="TRUE">&nbsp;</TD>
+      </TR>
+      <TR CELLPADDING="0" CELLSPACING="0" BORDER="0">
+        <TD BGCOLOR="none"   PORT="p02" WIDTH="1" HEIGHT="1" BORDER="0" CELLPADDING="0" CELLSPACING="0" >&nbsp;</TD>
+        <TD BGCOLOR="none" PORT="d" WIDTH="48" HEIGHT="1" BORDER="0" CELLPADDING="0" CELLSPACING="0" >&nbsp;</TD>
+        <TD BGCOLOR="none"   PORT="p22" WIDTH="1" HEIGHT="1" BORDER="0" CELLPADDING="0" CELLSPACING="0" >&nbsp;</TD>
+      </TR>
+      </TABLE>
+    >];
+"""
+
+def gv_node(name, imgfn, pos = ""):
+  return re.sub( '##POS##', pos, re.sub( '##NAME##', name, re.sub("##IMG##", imgfn, NODE_TEMPLATE)))
+
+poms_json = {}
+with open(POMS_FN) as fp:
+  poms_json = json.loads(fp.read())
+
+tilemap = {}
+with open(TILEMAP_FN) as fp:
+  tilemap = json.loads(fp.read())
+
+graph_txt = [ "graph {" ]
+graph_txt.append(" K=1;")
+graph_txt.append(" overlap=false;")
+graph_txt.append(" splines=true;")
+graph_txt.append(" nodesep=0.25;")
+graph_txt.append(" ratio=1;")
+graph_txt.append(" center=1;")
+graph_txt.append(" start=4;")
+graph_txt.append(" maxiter=100000;")
+
+tile_pos_map = {}
+for h in range(tilemap["height"]):
+  for w in range(tilemap["width"]):
+    idx = h*tilemap["width"] + w
+    tile = tilemap["layers"][0]["data"][idx]
+
+    if str(tile) in tile_pos_map: continue
+    tile_pos_map[str(tile)] = [ w, h ]
+
+for tile_idx in range(len(poms_json["name"])):
+  if tile_idx==0: continue
+  name = poms_json["name"][tile_idx]
+
+  
+  f = 12.0
+  p = tile_pos_map[str(tile_idx)]
+  x = f*float(p[0])/float(tilemap["width"])
+  y = f*float(p[1])/float(tilemap["height"])
+
+
+
+  #pos = "pos=\"" + str(f*float(tile_idx)/float(len(poms_json["name"]))) + ",0\""
+  pos = "pos=\"" + str(x) + "," + str(y) + "\""
+
+  graph_txt.append(gv_node(name, "img/" + name + ".png", pos ))
+
+
+for rule in poms_json["rule"]:
+  if len(rule)<4: continue
+  src_tile = rule[0]
+  dst_tile = rule[1]
+  idir = rule[2]
+  val = rule[3]
+  if val <= 0: continue
+  if (src_tile == 0) or (dst_tile==0): continue
+  if (src_tile > dst_tile): continue
+  if idir>=4: continue
+
+  src_name = poms_json["name"][src_tile]
+  dst_name = poms_json["name"][dst_tile]
+
+  edge_attr = "[penwidth=2.0 color=\"#3f3f3f3f\"]"
+
+  if idir==0:
+    graph_txt.append(" ".join([ " ", src_name + ":r", "--", dst_name + ":l", edge_attr, ";" ]))
+  elif idir==1:
+    graph_txt.append(" ".join([ " ", src_name + ":l", "--", dst_name + ":r", edge_attr, ";" ]))
+
+  # reversed because of top-downness of image
+  #
+  elif idir==2:
+    graph_txt.append(" ".join([ " ", src_name + ":d", "--", dst_name + ":u", edge_attr, ";" ]))
+  elif idir==3:
+    graph_txt.append(" ".join([ " ", src_name + ":u", "--", dst_name + ":d", edge_attr, ";" ]))
+
+
+graph_txt.append("}")
+print("\n".join(graph_txt))
+

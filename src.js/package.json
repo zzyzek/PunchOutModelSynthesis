@@ -1,0 +1,12 @@
+{
+  "name": "punch-out-model-synthesis",
+  "version": "0.1.0",
+  "author": "zzyzek",
+  "license": "cc0",
+  "dependencies" : {
+
+    "pngjs": "7",
+    "posix-getopt" : "1"
+
+  }
+}
