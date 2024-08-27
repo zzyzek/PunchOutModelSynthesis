@@ -18,10 +18,10 @@ $poms \
   -J 10000 \
   -w 1.0 \
   -E -1.95 \
-  -1 ./data/pillMortal_tiled_128x128.json \
+  -1 ./data/pillMortal_128x128.json \
   -8 ./data/pillMortal_snapshot.json \
   -P min \
   -O patch-policy=pending \
   -S 1337 \
-  -V 2
+  -V 1
 
