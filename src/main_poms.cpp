@@ -19,6 +19,8 @@
 #include "auxExport.hpp"
 #include "TiledExport.hpp"
 
+#include "main_poms.hpp"
+
 #define FNL_IMPL
 #include "FastNoiseLite.h"
 
@@ -2674,7 +2676,7 @@ double window_alpha(_opt_t &opt) {
 //---
 
 
-int main(int argc, char **argv) {
+int poms_main(int argc, char **argv) {
   int i, ii,
       r, _ret, ret, _r,
       sep = ',',
@@ -3974,3 +3976,10 @@ int main(int argc, char **argv) {
 
   return 0;
 }
+
+#ifndef CUSTOM_MAIN
+int main(int argc, char **argv) {
+  return poms_main(argc, argv);
+}
+#endif
+
