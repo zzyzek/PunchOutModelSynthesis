@@ -72,9 +72,14 @@ function main_like(f_cb, param) {
 }
 
 function example_run() {
+
+  // pillMortal_poms.json was preloaded/baked into the
+  // emscripten port, so we have a copy in data/ but
+  // that's not the copy referenced below
+  //
   let argv = [
     "foo",
-    "-C", "pillMortal_poms.json",
+    "-C", "data/pillMortal_poms.json",
     "-s", "48,48,1",
     "-q", "64,64,1",
     "-b", "1",
