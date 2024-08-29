@@ -24,11 +24,11 @@ em++ \
   ./pomsLoad.cpp \
   ./pomsRegionQuilting.cpp \
   ./web_poms.cpp \
-  --preload-file ./pillMortal_poms.json \
+  --preload-file ./html/data/pillMortal_poms.json \
   -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,setValue \
   -sALLOW_MEMORY_GROWTH=1 \
   -sMAXIMUM_MEMORY=4294967296 \
-  -o poms.js
+  -o html/js/poms.js
 
 #  -s EXPORTED_FUNCTIONS="['_custom_function', '_main']" \
 
