@@ -861,6 +861,11 @@ void err_and_exit(const char *s) {
   exit(-1);
 }
 
+int err_and_return(const char *s) {
+  fprintf(stderr, "%s\n", s);
+  return -1;
+}
+
 //-----
 //-----
 //-----
@@ -2681,7 +2686,7 @@ int poms_main(int argc, char **argv) {
       r, _ret, ret, _r,
       sep = ',',
       ch,
-      opt_idx;
+      opt_idx=0;
 
   int32_t print_order[3] = {1,2,0};
 
@@ -2763,10 +2768,10 @@ int poms_main(int argc, char **argv) {
     switch (ch) {
       case 'h':
         print_help(stdout);
-        exit(0);
+        return 0;
       case 'v':
         print_version(stdout);
-        exit(0);
+        return 0;
       case 'V':
         opt.verbose = atoi(optarg);
         break;
@@ -3011,7 +3016,7 @@ int poms_main(int argc, char **argv) {
               }
               else {
                 fprintf(stderr, "bad wavefront option (must be one of plane,plane-)\n");
-                exit(-1);
+                return -1;
               }
 
               if (tok_t.size() > 1) {
@@ -3033,16 +3038,6 @@ int poms_main(int argc, char **argv) {
                 }
 
               }
-
-              /*
-              //DEBUG
-              printf("## distance v(%f,%f,%f), p(%f,%f,%f) coef:%f, implicit:%i\n",
-                  poms.m_distance_v[0], poms.m_distance_v[1], poms.m_distance_v[2],
-                  poms.m_distance_p[0], poms.m_distance_p[1], poms.m_distance_p[2],
-                  poms.m_distance_coef,
-                  implicit_distance_point);
-              exit(-1);
-              */
 
             }
           }
@@ -3082,11 +3077,6 @@ int poms_main(int argc, char **argv) {
         break;
       case 'B':
         s = optarg;
-
-        //splitStr(tok, s, sep);
-        //opt.soften_size[0] = ((tok.size() > 0) ? atoi(tok[0].c_str()) : 1);
-        //opt.soften_size[1] = ((tok.size() > 1) ? atoi(tok[1].c_str()) : opt.soften_size[0]);
-        //opt.soften_size[2] = ((tok.size() > 2) ? atoi(tok[2].c_str()) : opt.soften_size[1]);
 
         splitStr(tok_t, s, ':');
         if (tok_t.size() > 0) {
@@ -3152,7 +3142,7 @@ int poms_main(int argc, char **argv) {
       default:
         fprintf(stderr, "invalid option (%c)", (char)ch);
         print_help(stderr);
-        exit(-1);
+        return -1;
         break;
     }
 
@@ -3161,7 +3151,7 @@ int poms_main(int argc, char **argv) {
   if (!opt.valid) {
     fprintf(stderr, "must provide POMS config JSON file\n");
     print_help(stderr);
-    exit(-1);
+    return(-1);
   }
 
   poms.m_verbose = opt.verbose;
@@ -3227,7 +3217,7 @@ int poms_main(int argc, char **argv) {
   r = opt.soften_window.init_cdf();
   if (r<0) {
     fprintf(stderr, "soften_window.init_cdf failed, got: %i, exiting\n", r);
-    exit(-1);
+    return(-1);
   }
 
   poms.m_soften_size[0] = opt.soften_window.soften_min[0];
@@ -3256,7 +3246,7 @@ int poms_main(int argc, char **argv) {
     fprintf(stderr, "error loading '%s' JSON config file, got %i, exiting\n",
         opt.cfg_fn.c_str(),
         r);
-    exit(-1);
+    return(-1);
   }
 
   poms.clampParameters();
@@ -3281,7 +3271,7 @@ int poms_main(int argc, char **argv) {
         (int)poms.m_block_size[0],
         (int)poms.m_block_size[1],
         (int)poms.m_block_size[2]);
-    exit(-1);
+    return(-1);
   }
 
   if ((poms.m_soften_size[0] <= 0) ||
@@ -3291,7 +3281,7 @@ int poms_main(int argc, char **argv) {
         (int)poms.m_soften_size[0],
         (int)poms.m_soften_size[1],
         (int)poms.m_soften_size[2]);
-    exit(-1);
+    return(-1);
   }
 
   //----
@@ -3316,7 +3306,7 @@ int poms_main(int argc, char **argv) {
 
     if (opt.noise_test) {
       print_noise(poms, g_ctx);
-      exit(0);
+      return(0);
     }
 
   }
@@ -3497,7 +3487,7 @@ int poms_main(int argc, char **argv) {
       _patch_choice_wf_cube(g_ctx, quilt_s, quilt_ds, poms.m_size, poms.m_quilt_size);
     }
     else {
-      printf("ERROR: bad patch choice policy option, exiting\n"); exit(-1);
+      printf("ERROR: bad patch choice policy option, exiting\n"); return(-1);
     }
 
     erode_p = (double)poms.quiltResolvedCount() / (double)poms.m_quilt_cell_count;
@@ -3623,7 +3613,7 @@ int poms_main(int argc, char **argv) {
 
 
     r = poms.BMSInit();
-    if (r!=0) { err_and_exit("BMSInit error"); }
+    if (r!=0) { return err_and_return("BMSInit error"); }
 
     if (opt.viz_step>0) {
       if (g_ctx.patch_snapshot_fn.size() > 0) {
@@ -3804,7 +3794,7 @@ int poms_main(int argc, char **argv) {
       }
 
       r = poms.saveQuiltPatchRegion();
-      if (r<0) { err_and_exit("saveQuiltPatchRegion error"); }
+      if (r<0) { return err_and_return("saveQuiltPatchRegion error"); }
 
       if (poms.m_verbose >= POMS_VERBOSE_STEP) {
         printf("## saving quilt patch [%i;%i][%i:%i][%i:%i]\n",

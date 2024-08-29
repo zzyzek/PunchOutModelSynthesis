@@ -1,0 +1,34 @@
+#!/bin/bash
+
+# NOTE: yajl needs some magic invocation of
+#       emconfigure or emcmake to build the libyajl.a
+#       file or else it'll search for some `yajl_tree.c.o` or
+#       or some such.
+#       Also, manually symlink libyajl_s.a to libyajl.a
+#
+
+em++ \
+  -DCUSTOM_MAIN \
+  -O2 \
+  -s LLD_REPORT_UNDEFINED \
+  -I ./yajl-2.1.1/include \
+  ./yajl-2.1.1/lib/libyajl.a \
+  ./tiny_obj_loader.c \
+  ./main_poms.cpp \
+  ./auxExport.cpp \
+  ./pomsAlgorithm.cpp \
+  ./pomsConstraintPropagate.cpp \
+  ./pomsDebug.cpp \
+  ./pomsEntropy.cpp \
+  ./pomsExport.cpp \
+  ./pomsLoad.cpp \
+  ./pomsRegionQuilting.cpp \
+  ./web_poms.cpp \
+  --preload-file ./pillMortal_poms.json \
+  -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,setValue \
+  -sALLOW_MEMORY_GROWTH=1 \
+  -sMAXIMUM_MEMORY=4294967296 \
+  -o poms.js
+
+#  -s EXPORTED_FUNCTIONS="['_custom_function', '_main']" \
+
