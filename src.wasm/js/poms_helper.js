@@ -90,4 +90,10 @@ function example_run() {
     "-V", "1"
   ];
   main_like( Module._main, argv );
+
+  let out_json = new TextDecoder().decode( FS.readFile("pillMortal_64x64.json") );
+
+  return out_json;
 }
+
+
