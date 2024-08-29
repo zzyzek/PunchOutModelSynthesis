@@ -104,14 +104,22 @@ int custom_function_1(void) {
     x += ch;
   }
 
-  //x = "ok";
-
   printf("custom function 1:\n%s\n", x.c_str());
   return 0;
 }
 
 }
 
+
+// Here is the main entry point.
+// The program will be called but with no arguments,
+// so the check eblow will bail without issue.
+//
+// Subsequent calls can pass in command line options
+// and run the program as normal.
+//
+// see html/js/poms_helper.js
+//
 int main(int argc, char **argv) {
   int i;
 
