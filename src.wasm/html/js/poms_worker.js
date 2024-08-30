@@ -8,10 +8,48 @@
  *
  */
 
+var g_wrk = {
+  "ready": false
+};
+
+importScripts("poms.js");
+
+// need this here because the emscripten runtime takes a while
+// to load. When instanciating the web worker we need to
+// wait till the whole environment is loaded before we kick
+// off a run.
+//
+Module['onRuntimeInitialized'] = function() {
+  g_wrk.ready = true;
+}
+
+onmessage = function(e) {
+  let op = e.data;
+
+  if (!g_wrk.ready) {
+    setTimeout( (function(_e) { return function() { onmessage(_e); } })(e), 10 );
+    return;
+  }
+
+  if (op == "start") {
+    example_run();
+  }
+  else if (op == "ping") {
+    postMessage("pong");
+  }
+  else if (op == "result") {
+    let json_txt = new TextDecoder().decode( FS.readFile("pillMortal_64x64.json") );
+    postMessage(json_txt);
+  }
+  else {
+    postMessage("unknown op");
+  }
+
+}
+
 //
 // https://stackoverflow.com/a/70267473/4002265
 // convert a Javascript string to a C string
-//
 function string2charp(s) {
   var size = lengthBytesUTF8(s) + 1;
   var ptr = _malloc(size);
@@ -98,73 +136,14 @@ function example_run() {
 
   let out_json = JSON.parse(json_txt);
 
-
-  //EXPERIMENTAL
-  //EXPERIMENTAL
-
-  update_pixi_tilemap( out_json );
-
-  //let app = new PIXI.Application({ background: '#7f7f7f', resizeTo: window });
-  let app = new PIXI.Application({ background: '#ffffff', resizeTo: window });
-  document.body.appendChild(app.view);
-
-  app.stage.eventMode = 'static';
-  app.stage.hitArea = app.screen;
-  app.stage.addEventListener('pointermove', mouse_move);
-
-  g_tile_viewer_info.pixi.app = app;
-
-  setup_keyboard();
-
-  //EXPERIMENTAL
-  //EXPERIMENTAL
-
   return out_json;
-}
-
-var g_worker_info = {
-  "init":false,
-  "worker": null
-};
-
-function worker_update(e) {
-  var txt = e.data;
-  var data = JSON.parse(txt);
-
-  update_pixi_tilemap(data);
-}
-
-function example_run_worker() {
-  //let app = new PIXI.Application({ background: '#7f7f7f', resizeTo: window });
-  let app = new PIXI.Application({ background: '#ffffff', resizeTo: window });
-  document.body.appendChild(app.view);
-
-  app.stage.eventMode = 'static';
-  app.stage.hitArea = app.screen;
-  app.stage.addEventListener('pointermove', mouse_move);
-
-  g_tile_viewer_info.pixi.app = app;
-
-  setup_keyboard();
-
-
-  g_worker_info.worker = new Worker("js/poms_worker.js");
-  g_worker_info.worker.onmessage = worker_update;
-  g_worker_info.worker.postMessage("start");
 }
 
 // special function called from emscripten compiled code
 //
 function web_worker_cb() {
-  return;
-
-  console.log("web_worker_cb");
   let json_txt = new TextDecoder().decode( FS.readFile("pillMortal_snapshot.json") );
-  let json_data = JSON.parse(json_txt);
-  update_pixi_tilemap(json_data);
+  postMessage(json_txt);
 }
 
-function poms_web_init() {
-  console.log("poms_web_init");
-}
 
