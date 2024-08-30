@@ -18,6 +18,7 @@ Gallery
 | [![surt_blowharder](surt_blowharder/data/blowharder_128x128.png)](surt_blowharder) |
 | [![surt_psygen](surt_psygen/data/psygen_128x128.png)](surt_psygen) |
 | [![surt_vilenes](surt_vilenes/data/vilenes_128x128.png)](surt_vilenes) |
+| [![thkaspar_mt](thkaspar_mt/data/forestmicro_128x128.png)](thkaspar_mt) |
 | [![thkaspar_mt](thkaspar_mt/data/neondirt_128x128.png)](thkaspar_mt) |
 | [![thkaspar_mt](thkaspar_mt/data/neonsnow_128x128.png)](thkaspar_mt) |
 | [![thkaspar_mt](thkaspar_mt/data/neondungeon_128x128.png)](thkaspar_mt) |
