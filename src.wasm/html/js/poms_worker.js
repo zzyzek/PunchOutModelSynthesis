@@ -24,14 +24,23 @@ Module['onRuntimeInitialized'] = function() {
 }
 
 onmessage = function(e) {
-  let op = e.data;
+  let msg = e.data;
+  let op = msg.type;
+
+  console.log(msg);
 
   if (!g_wrk.ready) {
     setTimeout( (function(_e) { return function() { onmessage(_e); } })(e), 10 );
     return;
   }
 
-  if (op == "start") {
+  let argv = ["bin"];
+  for (let ii=0; ii<msg.argv.length; ii++) { argv.push(msg.argv[ii]); }
+
+  if (op == "run") {
+    main_like( Module._main, argv );
+  }
+  else if (op == "start") {
     example_run();
   }
   else if (op == "ping") {

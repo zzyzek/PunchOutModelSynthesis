@@ -1,4 +1,20 @@
 #!/bin/bash
+#
+# LICENSE: CC0
+#
+
+node ../../src.js/img2tile.js \
+  -E ./data/thkaspar_forestmicro.png \
+  -P ./data/forestmicro_poms.json \
+  -T ./data/forestmicro_tileset.png \
+  -t ./data/forestmicro_flat_tileset.png \
+  -M ./data/forestmicro_tilemap.json \
+  -m ./data/forestmicro_flat_tilemap.json \
+  -s 16 \
+  -w 32 \
+  -D 128,128,1 \
+  -q 128,128,1 \
+  -W uniform
 
 node ../../src.js/img2tile.js \
   -E ./data/thkaspar_neondungeon.png \

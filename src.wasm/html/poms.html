@@ -5,6 +5,11 @@
 
   <title>Punch Out Model Synthesis</title>
 
+  <link rel="stylesheet" type="text/css" href="css/localfonts.css">
+  <link rel="stylesheet" href="css/normalize.css">
+  <link rel="stylesheet" href="css/skeleton.css">
+
+
   <!--  <link rel="icon" type="image/png" href="images/favicon.ico"> -->
   <script type='text/javascript' src='js/poms.js'></script>
 
@@ -17,14 +22,150 @@
 </head>
 
 <body>
+  <div class='container'>
 
+    <dialog id='ui_dialog' >
+      <p>Punch Out Model Synthesis Parameters</p>
+
+      <div class="row">
+        <div class="three columns" > blockSize (x,y) </div>
+        <div class="three columns" > <input type='text' size='2' id='ui_blocksize_x'/> </div>
+        <div class="three columns" > <input type='text' size='2' id='ui_blocksize_y'/>  </div>
+        <div class="three columns"> <button id='ui_blocksize_default'>default</button> </div>
+      </div>
+
+      <div class="row">
+        <div class="three columns" > gridSize (x,y) </div>
+        <div class="three columns" > <input type='text' size='2' id='ui_gridsize_x'/> </div>
+        <div class="three columns" > <input type='text' size='2' id='ui_gridsize_y'/>  </div>
+        <div class="three columns"> <button id='ui_gridsize_default'>default</button> </div>
+      </div>
+
+      <div class="row">
+        <div class="three columns"> softenSize (x,y)[,(xe,ye)] </div>
+        <div class="one columns"> <input type='text' size='2' id='ui_softensize_x_start'/> </div>
+        <div class="one columns"> <input type='text' size='2' id='ui_softensize_y_start'/> </div>
+        <div class="one columns"> &nbsp; </div>
+        <div class="one columns"> <input type='text' size='2' id='ui_softensize_x_end' /> </div>
+        <div class="one columns"> <input type='text' size='2' id='ui_softensize_y_end'/> </div>
+        <div class="one columns"> &nbsp; </div>
+        <div class="three columns"> <button id='ui_softensize_default'>default</button> </div>
+      </div>
+
+      <div class="row">
+        <div class="three columns" > maxBlockIter (x,y) </div>
+        <div class="three columns" > <input type='text' size='6' id='ui_maxiter'/> </div>
+        <div class="three columns" > &nbsp; </div>
+        <div class="three columns"> <button id='ui_maxiter_default'>default</button> </div>
+      </div>
+
+      <div class="row">
+        <div class="three columns" > rand. cell choice param (w/E) </div>
+        <div class="three columns" > <input type='text' size='2' id='ui_rand_w'/> </div>
+        <div class="three columns" > <input type='text' size='2' id='ui_rand_E'/>  </div>
+        <div class="three columns"> <button id='ui_rand_default'>default</button> </div>
+      </div>
+
+      <div class="row">
+        <div class="three columns" > cell choice policy </div>
+
+        <div class="six columns" >
+          <select class='u-full-width' id='ui_cell_choice_policy'>
+            <option value='min'>min entropy</option>
+            <option value='max'>max entropy</option>
+            <option value='rand'>rand</option>
+            <option value='wf'>wavefront</option>
+          </select>
+        </div>
+        <div class="three columns"> &nbsp; </div>
+
+      </div>
+
+      <div class="row">
+        <div class="three columns" > block choice policy </div>
+
+        <div class="six columns" >
+          <select class='u-full-width' id='ui_block_choice_policy'>
+            <option value='pending'>uniform</option>
+            <option value='xnyn'>rand</option>
+            <option value='xpyp'>x+ y+</option>
+            <option value='xnyn'>x- y-</option>
+            <option value='cone'>cone</option>
+            <option value='cone1'>cone1</option>
+            <option value='cone-'>cone-</option>
+            <option value='cone1-'>cone1-</option>
+            <option value='wf'>wavefront</option>
+            <option value='wf-'>wavefront-</option>
+            <option value='wf2'>wavefront2</option>
+            <option value='wf3'>wavefront3</option>
+          </select>
+        </div>
+        <div class="three columns"> &nbsp; </div>
+
+      </div>
+
+      <div class="row">
+        <div class="three columns" > viz step </div>
+        <div class="three columns" > <input id='ui_vizstep' type='text' size='2'/> </div>
+        <div class="three columns" > &nbsp; </div>
+        <div class="three columns"> <button id='ui_vizstep_default'>default</button> </div>
+      </div>
+
+      <div class="row">
+        <div class="three columns" > seed </div>
+        <div class="three columns" > <input id='ui_seed' type='text' size='6'/> </div>
+        <div class="three columns" > &nbsp; </div>
+        <div class="three columns"> <button id='ui_seed_default'>default</button> </div>
+      </div>
+
+      <hr>
+
+      <div class="row">
+        <div class="four columns" style='text-align:center;'> <button id='ui_option_accept'>ok</button> </div>
+        <div class="four columns" > &nbsp; </div>
+        <div class="four columns" style='text-align:center;'> <button id='ui_option_cancel'>cancel</button> </div>
+      </div>
+
+
+
+    </dialog>
+
+    <div class="row" style='margin-top: 5%;'>
+      <div class="twelve columns" >
+        <h4>Punch Out Model Synthesis</h4>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="row">
+        <div class="four columns" style='text-align:center;' >
+          <button id='ui_run' style='background:#efe;'>run</button>
+        </div>
+        <div class="four columns" style='text-align:left;'>
+          <select class='u-full-width' id='ui_tileset'>
+            <option value='pillMortal'>Pill Mortal</option>
+            <option value='oarpgo'>Overhead Action RPG Overworld</option>
+            <option value='rrti'>Forest Micro</option>
+          </select>
+        </div>
+        <div class="four columns" style='text-align:center;'>
+          <button id='ui_option' style='background:#ffe;'>options</button>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="twelve columns" id='ui_gfx'>
+        <canvas id='ui_canvas'></canvas>
+      </div>
+    </div>
+
+
+  </div>
 </body>
 
 <script>
-
-  onmessage = (e) => {
-    console.log("main thread:", e);
-  };
   poms_web_init();
 </script>
 
