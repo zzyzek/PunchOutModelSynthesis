@@ -35,6 +35,11 @@ int exit_err(const char *msg=NULL) {
   exit(-1);
 }
 
+int return_err(const char *msg=NULL) {
+  if (msg) { fprintf(stderr, "%s\n", msg); }
+  return(-1);
+}
+
 //----
 //----
 //----
@@ -251,11 +256,11 @@ int main(int argc, char **argv) {
     switch (ch) {
       case 'h':
         print_help(stdout);
-        exit(0);
+        return(0);
         break;
       case 'v':
         print_version(stdout);
-        exit(0);
+        return(0);
         break;
       case 'V':
         poms.m_verbose = atoi(optarg);
@@ -301,7 +306,7 @@ int main(int argc, char **argv) {
       default:
         fprintf(stderr, "invalid option (%c)", (char)ch);
         print_help(stderr);
-        exit(-1);
+        return(-1);
         break;
     }
   }
@@ -309,7 +314,7 @@ int main(int argc, char **argv) {
   if (poms_cfg_fn.size() == 0) {
     fprintf(stderr, "provide input POMS ocnfig file\n");
     print_help(stderr);
-    exit(-1);
+    return(-1);
   }
 
   poms.rnd_seed(seed);
@@ -331,39 +336,39 @@ int main(int argc, char **argv) {
   r = poms.loadJSONFile( poms_cfg_fn );
   if (r<0) {
     fprintf(stderr, "error loading file: %s\n", poms_cfg_fn.c_str());
-    exit(-1);
+    return(-1);
   }
 
   r = poms.renew();
-  if (r<0) { exit_err("ERROR: renew"); }
+  if (r<0) { return return_err("ERROR: renew"); }
   memset( &(poms.m_cell_pin[0]), 0, sizeof(int8_t)*poms.m_cell_count);
   poms.resetAC4Dirty(poms.m_plane);
 
   //---
 
   r = poms.applyConstraints();
-  if (r<0) { exit_err("ERROR: applyConstraints failed"); }
+  if (r<0) { return return_err("ERROR: applyConstraints failed"); }
 
   r = poms.applyConstraints(0,1);
-  if (r<0) { exit_err("ERROR: applyConstraints(0,1) failed"); }
+  if (r<0) { return return_err("ERROR: applyConstraints(0,1) failed"); }
 
   r = poms.cullSweep();
   if (r<0) {
     printf("#cullSeep failed with %i\n", r);
     poms.printDebugConflict();
-    exit_err("ERROR: cullSweep failed");
+    return return_err("ERROR: cullSweep failed");
   }
 
   r = poms.savePrefatory();
-  if (r<0) { exit_err("ERROR: savePrefatory failed"); }
+  if (r<0) { return return_err("ERROR: savePrefatory failed"); }
 
   //---
 
   r = poms.applyStartConstraints();
-  if (r<0) { exit_err("ERROR: applyStartConstraints failed"); }
+  if (r<0) { return return_err("ERROR: applyStartConstraints failed"); }
 
   r = poms.cullSweep();
-  if (r<0) { exit_err("ERROR: cullSweep after applyStartConstraints failed"); }
+  if (r<0) { return return_err("ERROR: cullSweep after applyStartConstraints failed"); }
 
   poms.m_tile_choice_policy = POMS_TILE_CHOICE_PROB;
   poms.m_block_choice_policy = POMS_BLOCK_CHOICE_MIN_ENTROPY;
@@ -464,5 +469,5 @@ int main(int argc, char **argv) {
   if      (_opt_print==0) { _print_freq(freq, poms); }
   else if (_opt_print==1) { _print_voxel(freq, poms); }
 
-  exit(0);
+  return 0;
 }

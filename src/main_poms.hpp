@@ -43,6 +43,8 @@ typedef struct g_ctx_type {
   std::string tiled_snapshot_fn;
   std::string patch_snapshot_fn;
 
+  int (*global_callback)(void);
+
   std::vector< int32_t > m_conflict_grid;
 
   double m_alpha, m_beta;

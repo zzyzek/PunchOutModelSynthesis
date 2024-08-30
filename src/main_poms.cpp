@@ -13,7 +13,7 @@
 
 #include "main_poms.hpp"
 
-g_ctx_t g_ctx;
+g_ctx_t g_ctx = {0};
 
 static double _rand() {
   static int init=0;
@@ -3527,11 +3527,15 @@ int poms_main(int argc, char **argv) {
       if (g_ctx.tiled_snapshot_fn.size() > 0) {
         _r = rt_tiled_snapshot(&g_ctx);
         if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
+
+        if (g_ctx.global_callback) { g_ctx.global_callback(); }
       }
 
       if (g_ctx.patch_snapshot_fn.size() > 0) {
         _r = rt_patch_snapshot(&g_ctx,1);
         if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
+
+        if (g_ctx.global_callback) { g_ctx.global_callback(); }
       }
 
       if (poms.m_verbose >= POMS_VERBOSE_ITER) {
@@ -3566,6 +3570,8 @@ int poms_main(int argc, char **argv) {
       if (g_ctx.patch_snapshot_fn.size() > 0) {
         _r = rt_patch_snapshot(&g_ctx,1);
         if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
+
+        if (g_ctx.global_callback) { g_ctx.global_callback(); }
       }
     }
 
@@ -3602,6 +3608,8 @@ int poms_main(int argc, char **argv) {
         if (g_ctx.patch_snapshot_fn.size() > 0) {
           _r = rt_patch_snapshot(&g_ctx,1);
           if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
+
+          if (g_ctx.global_callback) { g_ctx.global_callback(); }
         }
       }
 
@@ -3630,11 +3638,15 @@ int poms_main(int argc, char **argv) {
           if (g_ctx.tiled_snapshot_fn.size() > 0) {
             _r = rt_tiled_snapshot(&g_ctx);
             if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
+
+            if (g_ctx.global_callback) { g_ctx.global_callback(); }
           }
 
           if (g_ctx.patch_snapshot_fn.size() > 0) {
             _r = rt_patch_snapshot(&g_ctx,1);
             if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
+
+            if (g_ctx.global_callback) { g_ctx.global_callback(); }
           }
 
 
@@ -3670,11 +3682,15 @@ int poms_main(int argc, char **argv) {
           if (_r<0) {
             printf("# failed to save snapshot, got (%i)\n", _r);
           }
+
+          if (g_ctx.global_callback) { g_ctx.global_callback(); }
         }
 
         if (g_ctx.patch_snapshot_fn.size() > 0) {
           _r = rt_patch_snapshot(&g_ctx,1);
           if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
+
+          if (g_ctx.global_callback) { g_ctx.global_callback(); }
         }
 
       }
@@ -3691,11 +3707,15 @@ int poms_main(int argc, char **argv) {
     if (g_ctx.tiled_snapshot_fn.size() > 0) {
       _r = rt_tiled_snapshot(&g_ctx);
       if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
+
+      if (g_ctx.global_callback) { g_ctx.global_callback(); }
     }
 
     if (g_ctx.patch_snapshot_fn.size() > 0) {
       _r = rt_patch_snapshot(&g_ctx,1);
       if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
+
+      if (g_ctx.global_callback) { g_ctx.global_callback(); }
     }
 
     if (poms.m_verbose >= POMS_VERBOSE_RUN) {
@@ -3898,6 +3918,8 @@ int poms_main(int argc, char **argv) {
   if (g_ctx.patch_snapshot_fn.size() > 0) {
     _r = rt_patch_snapshot(&g_ctx,0);
     if (_r<0) { printf("# failed to save final patch, got (%i)\n", _r); }
+
+    if (g_ctx.global_callback) { g_ctx.global_callback(); }
   }
 
 

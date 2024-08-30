@@ -143,5 +143,7 @@ int main(int argc, char **argv) {
   optopt = 0;
   optarg = NULL;
 
+  g_ctx.global_callback = web_viz_cb;
+
   return poms_main(argc, argv);
 }

@@ -90,6 +90,7 @@ function example_run() {
     "-1", "pillMortal_64x64.json",
     "-8", "pillMortal_snapshot.json",
     "-P", "min",
+    "-O", "viz_step=50",
     "-O", "patch-policy=pending",
     "-S", "1337",
     "-V", "1"
