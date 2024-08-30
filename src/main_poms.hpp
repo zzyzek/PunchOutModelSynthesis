@@ -43,6 +43,10 @@ typedef struct g_ctx_type {
   std::string tiled_snapshot_fn;
   std::string patch_snapshot_fn;
 
+  // hack for now that lets other programs that call
+  // poms_main have access to a callback in case they
+  // need updates during the run
+  //
   int (*global_callback)(void);
 
   std::vector< int32_t > m_conflict_grid;
