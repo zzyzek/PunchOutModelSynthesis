@@ -49,9 +49,9 @@ var g_tileset_default = {
     "-O": "patch-policy=cone-",
     "-S": "1337",
     "-V": "1"
-
   },
-  "rrti": {}
+  "rrti": {
+  }
 };
 
 
