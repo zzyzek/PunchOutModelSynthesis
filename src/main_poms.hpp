@@ -22,15 +22,7 @@
 #include "auxExport.hpp"
 #include "TiledExport.hpp"
 
-
-/*
-#ifndef FNL_IMPL
-#define FNL_IMPL
-#include "FastNoiseLite.h"
-#endif
-*/
-
-#define POMS_BIN_VERSION "0.14.0"
+#define POMS_BIN_VERSION "0.15.0"
 
 enum NOISE_TYPE {
   NOISE_TYPE_NONE = 0,

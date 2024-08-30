@@ -8,30 +8,12 @@
  *
  */
 
-/*
-#include <stdio.h>
-#include <stdlib.h>
-
-#include <stdint.h>
-#include <getopt.h>
-
-#include "poms.hpp"
-
-#include "auxExport.hpp"
-#include "TiledExport.hpp"
-*/
 #define FNL_IMPL
 #include "FastNoiseLite.h"
-//#include "TiledExport.hpp"
 
 #include "main_poms.hpp"
 
-/*
-#define FNL_IMPL
-#include "FastNoiseLite.h"
-
-#define POMS_BIN_VERSION "0.14.0"
-*/
+g_ctx_t g_ctx;
 
 static double _rand() {
   static int init=0;
@@ -46,49 +28,6 @@ static double _rand() {
   return p;
 }
 
-
-
-/*
-enum NOISE_TYPE {
-  NOISE_TYPE_NONE = 0,
-  NOISE_TYPE_LINEAR,
-  NOISE_TYPE_THRESHOLD,
-  NOISE_TYPE_TIERED,
-};
-
-enum NOISE_PRESET_TYPE {
-  NOISE_PRESET_TYPE_NONE = 0,
-  NOISE_PRESET_TYPE_SIMPLE,
-  NOISE_PRESET_TYPE_VECTOR,
-};
-
-typedef struct g_ctx_type {
-  POMS *poms;
-  tiled_export_t T;
-  std::string tiled_snapshot_fn;
-  std::string patch_snapshot_fn;
-
-  std::vector< int32_t > m_conflict_grid;
-
-  double m_alpha, m_beta;
-
-  int64_t m_iter;
-
-  std::vector< fnl_state >  noise;
-  std::vector< double >     noise_min;
-  std::vector< double >     noise_max;
-  std::vector< double >     noise_threshold;
-  std::vector< NOISE_TYPE > noise_type;
-
-  //std::vector< int32_t >  soften_min,
-  //                        soften_max;
-
-  int64_t m_slideshow_id;
-
-} g_ctx_t;
-*/
-
-g_ctx_t g_ctx;
 
 //----
 
