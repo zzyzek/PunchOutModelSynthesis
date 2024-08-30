@@ -672,7 +672,7 @@ function mouse_move(ev) {
   if (!(g_tile_viewer_info.ready)) { return; }
 
 
-  console.log("mm:", x, y);
+  //console.log("mm:", x, y);
 }
 
 function init() {

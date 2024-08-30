@@ -23,6 +23,7 @@ em++ \
   ./pomsExport.cpp \
   ./pomsLoad.cpp \
   ./pomsRegionQuilting.cpp \
+  ./TiledExport.cpp \
   ./web_poms.cpp \
   --preload-file 'html/data/pillMortal_poms.json@data/' \
   -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,setValue \

@@ -617,7 +617,7 @@
 1, 1, 1, 1, 1, 1
 ],
 "tileset": {
-  "image": "./data/pillMortal_tileset.png",
+  "image": "pillMortal_tileset.png",
   "tilecount": 189,
   "imageheight": 112,
   "imagewidth": 112,
@@ -651,7 +651,7 @@
 24, 23, 21, 22, 22, 25
 ],
 "flatTileset": {
-  "image": "./data/pillMortal_flat_tileset.png",
+  "image": "pillMortal_flat_tileset.png",
   "tilecount": 35,
   "imageheight": 48,
   "imagewidth": 48,

@@ -8,6 +8,7 @@
  *
  */
 
+/*
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -18,13 +19,19 @@
 
 #include "auxExport.hpp"
 #include "TiledExport.hpp"
+*/
+#define FNL_IMPL
+#include "FastNoiseLite.h"
+//#include "TiledExport.hpp"
 
 #include "main_poms.hpp"
 
+/*
 #define FNL_IMPL
 #include "FastNoiseLite.h"
 
 #define POMS_BIN_VERSION "0.14.0"
+*/
 
 static double _rand() {
   static int init=0;
@@ -41,7 +48,7 @@ static double _rand() {
 
 
 
-
+/*
 enum NOISE_TYPE {
   NOISE_TYPE_NONE = 0,
   NOISE_TYPE_LINEAR,
@@ -79,6 +86,7 @@ typedef struct g_ctx_type {
   int64_t m_slideshow_id;
 
 } g_ctx_t;
+*/
 
 g_ctx_t g_ctx;
 

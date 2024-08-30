@@ -96,9 +96,39 @@ function example_run() {
   ];
   main_like( Module._main, argv );
 
-  let out_json = new TextDecoder().decode( FS.readFile("pillMortal_64x64.json") );
+  let json_txt = new TextDecoder().decode( FS.readFile("pillMortal_64x64.json") );
+
+  let out_json = JSON.parse(json_txt);
+
+
+  //EXPERIMENTAL
+  //EXPERIMENTAL
+
+  update_pixi_tilemap( out_json );
+
+  //let app = new PIXI.Application({ background: '#7f7f7f', resizeTo: window });
+  let app = new PIXI.Application({ background: '#ffffff', resizeTo: window });
+  document.body.appendChild(app.view);
+
+  app.stage.eventMode = 'static';
+  app.stage.hitArea = app.screen;
+  app.stage.addEventListener('pointermove', mouse_move);
+
+  g_tile_viewer_info.pixi.app = app;
+
+  setup_keyboard();
+
+  //EXPERIMENTAL
+  //EXPERIMENTAL
 
   return out_json;
 }
 
+function web_worker_cb() {
+  console.log("web_worker_cb");
+}
+
+function poms_web_init() {
+  console.log("poms_web_init");
+}
 

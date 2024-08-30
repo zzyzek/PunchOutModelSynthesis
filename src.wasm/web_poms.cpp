@@ -19,6 +19,8 @@
 
 #include <emscripten.h>
 
+#include "FastNoiseLite.h"
+
 #include "main_poms.hpp"
 
 #define PRELOAD_POMS_FN "pillMortal_poms.json"
@@ -108,8 +110,16 @@ int custom_function_1(void) {
   return 0;
 }
 
+
+EMSCRIPTEN_KEEPALIVE
+int web_viz_cb(void) {
+  emscripten_run_script("web_worker_cb()");
+  return 0;
 }
 
+}
+
+extern g_ctx_t g_ctx;
 
 // Here is the main entry point.
 // The program will be called but with no arguments,
