@@ -9,6 +9,7 @@
  */
 
 var g_wrk = {
+  "snapshot_fn": "",
   "ready": false
 };
 
@@ -35,7 +36,15 @@ onmessage = function(e) {
   }
 
   let argv = ["bin"];
-  for (let ii=0; ii<msg.argv.length; ii++) { argv.push(msg.argv[ii]); }
+  for (let ii=0; ii<msg.argv.length; ii++) {
+    argv.push(msg.argv[ii]);
+  }
+
+  for (let ii=1; ii<argv.length; ii++) {
+    if (argv[ii-1] == "-8") {
+      g_wrk.snapshot_fn = argv[ii];
+    }
+  }
 
   if (op == "run") {
     main_like( Module._main, argv );
@@ -151,7 +160,13 @@ function example_run() {
 // special function called from emscripten compiled code
 //
 function web_worker_cb() {
-  let json_txt = new TextDecoder().decode( FS.readFile("pillMortal_snapshot.json") );
+
+  let json_txt = "{}";
+
+  if (g_wrk.snapshot_fn.length > 0) {
+    //json_txt = new TextDecoder().decode( FS.readFile("pillMortal_snapshot.json") );
+    json_txt = new TextDecoder().decode( FS.readFile(g_wrk.snapshot_fn) );
+  }
   postMessage(json_txt);
 }
 

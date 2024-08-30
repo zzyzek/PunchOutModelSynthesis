@@ -26,6 +26,8 @@ em++ \
   ./TiledExport.cpp \
   ./web_poms.cpp \
   --preload-file 'html/data/pillMortal_poms.json@data/' \
+  --preload-file 'html/data/forestmicro_poms.json@data/' \
+  --preload-file 'html/data/oarpgo_poms.json@data/' \
   -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,setValue \
   -sALLOW_MEMORY_GROWTH=1 \
   -sMAXIMUM_MEMORY=4294967296 \

@@ -12,6 +12,7 @@ var g_ui_info = {
   "app": null,
   "gfx": null,
   "init":false,
+  "snapshot_fn" : "",
   "worker": null
 };
 
@@ -51,6 +52,21 @@ var g_tileset_default = {
     "-V": "1"
   },
   "rrti": {
+    "-C" : "data/forestmicro_poms.json",
+    "-s": "48,48,1",
+    "-q": "128,128,1",
+    "-b": "1",
+    "-B": "8,8,1",
+    "-J":"10000",
+    "-w": "1.0",
+    "-E": "-1.95",
+    "-1": "forestmicro_tiled.json",
+    "-8": "forestmicro_snapshot.json",
+    "-P": "wf",
+    "-O": "viz_step=50",
+    "-O": "patch-policy=wf",
+    "-S": "1337",
+    "-V": "1"
   }
 };
 
@@ -124,6 +140,7 @@ function worker_update(e) {
 //----
 //----
 
+/*
 function example_run_worker() {
   //let app = new PIXI.Application({ background: '#7f7f7f', resizeTo: window });
   let app = new PIXI.Application({ background: '#ffffff', resizeTo: window });
@@ -176,6 +193,7 @@ function start_poms_worker() {
 
   g_ui_info.worker.postMessage(msg);
 }
+*/
 
 function ui_getSelect(_id) {
   let ele = document.getElementById(_id);
@@ -205,7 +223,21 @@ function start_run() {
 
   console.log(poms_cfg, tiled_fn, snapshot_fn);
 
+  let _argv = [];
+  let _default_argmap = g_tileset_default[tileset_name];
+  for (let opt_key in _default_argmap) {
+    _argv.push(opt_key);
+    _argv.push(_default_argmap[opt_key]);
+  }
 
+  g_ui_info.snapshot_fn = g_tileset_default[tileset_name]["-8"];
+
+  let msg = {
+    "type":"run",
+    "argv": _argv
+  };
+
+  g_ui_info.worker.postMessage(msg);
 }
 
 //
