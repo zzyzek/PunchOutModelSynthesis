@@ -16,6 +16,7 @@ var g_wrk = {
   "buf" : [],
   "buf_n" : 0,
   "buf_max" : 1024,
+  "poms_fn": "",
   "tiled_fn" : "",
   "snapshot_fn": "",
   "ready": false
@@ -105,6 +106,10 @@ onmessage = function(e) {
       g_wrk.tiled_fn = argv[ii];
     }
 
+    if (argv[ii-1] == "-C") {
+      g_wrk.poms_fn = argv[ii];
+    }
+
   }
 
   if (op == "run") {
@@ -180,8 +185,11 @@ function main_like(f_cb, param) {
   _free(ptr_a);
   free_charpp(c_charpp);
 
+  let poms_json_txt = new TextDecoder().decode( FS.readFile( g_wrk.poms_fn ));
+  let tiled_json_txt = new TextDecoder().decode( FS.readFile( g_wrk.tiled_fn ));
 
-  postMessage({"type":"fin", "code":rc});
+
+  postMessage({"type":"fin", "code":rc, "tiled": tiled_json_txt, "poms": poms_json_txt  });
 
   return rc;
 }

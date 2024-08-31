@@ -15,6 +15,9 @@ var g_ui_info = {
   "snapshot_fn" : "",
   "worker_state": "ready",
   "worker_counter": 0,
+
+  "worker_result": {},
+
   "worker": null
 };
 
@@ -28,6 +31,9 @@ function worker_update(e) {
   if (!("type" in msg_data)) { console.log("ignoring", msg_data); return; }
   if (msg_data.type == "fin") {
     g_ui_info.worker_state = "ready";
+
+    g_ui_info.worker_result = e.data;
+
     ui_run_ready(true);
     return;
   }
@@ -204,6 +210,25 @@ function start_run(dry_run) {
 //  \___/|___|
 //            
 
+function ui_run_ready(ready_to_run) {
+  ready_to_run = ((typeof ready_to_run === "undefined") ? false : ready_to_run);
+  let ele = document.getElementById("ui_run");
+  if (ready_to_run) {
+    ele.innerHTML = "run";
+    ele.disabled = false;
+
+    ele.classList.remove("button-disabled");
+    ele.classList.add("button-primary");
+  }
+  else {
+    ele.innerHTML = "running...";
+    ele.disabled = true;
+
+    ele.classList.remove("button-primary");
+    ele.classList.add("button-disabled");
+  }
+}
+
 function ui_update_log_lines(logline) {
   let ele = document.getElementById("ui_log");
 
@@ -222,21 +247,91 @@ function ui_update_log_lines(logline) {
 
 }
 
-function ui_run_ready(ready_to_run) {
-  ready_to_run = ((typeof ready_to_run === "undefined") ? false : ready_to_run);
-  let ele = document.getElementById("ui_run");
-  if (ready_to_run) {
-    ele.innerHTML = "run";
-    ele.disabled = false;
-    ele.style.color = "rgba(80,80,80,1.0)";
-    ele.style.background='rgba(176,237,136,0.5)';
+//---
+// https://stackoverflow.com/a/22172860/4002265
+// CC-BY-SA 3.0 https://stackoverflow.com/users/1865613/%cb%88v%c9%94l%c9%99
+//
+function getBase64Image(img) {
+  var canvas = document.createElement("canvas");
+  canvas.width = img.width;
+  canvas.height = img.height;
+  var ctx = canvas.getContext("2d");
+  ctx.drawImage(img, 0, 0);
+  var dataURL = canvas.toDataURL("image/png");
+  return dataURL.replace(/^data:image\/?[A-z]*;base64,/, '');
+}
+//---
+
+function create_flat_tiled(base_tiled_txt, poms_txt, flat_tileset_img) {
+  let flat_tiled_json = JSON.parse(base_tiled_txt);
+  let poms_json = JSON.parse(poms_txt);
+
+  let id_count = -1;
+
+  let layers = flat_tiled_json.layers;
+  for (let layer_idx=0; layer_idx < layers.length; layer_idx++) {
+    let data = layers[ layer_idx ].data;
+    for (let cell=0; cell < data.length; cell++) {
+      let src_id = data[cell];
+      let dst_id = 0;
+      if ((src_id >= 0) && (src_id < poms_json.flatMap.length)) {
+        dst_id = poms_json.flatMap[src_id];
+      }
+      data[cell] = dst_id;
+
+      if (dst_id > id_count) { id_count = dst_id; }
+    }
   }
-  else {
-    ele.innerHTML = "running...";
-    ele.disabled = true;
-    ele.style.color = "rgba(80,80,80,0.5)";
-    ele.style.background = "rgba(0,0,0,0.2)";
+  id_count++;
+
+  for (let tileset_id=0; tileset_id < flat_tiled_json.tilesets.length; tileset_id++) {
+    flat_tiled_json.tilesets[tileset_id].name =
+      flat_tiled_json.tilesets[tileset_id].name.replace('_tileset', '_flat_tileset');
+    flat_tiled_json.tilesets[tileset_id].image =
+      flat_tiled_json.tilesets[tileset_id].image.replace('_tileset', '_flat_tileset');
+
+    flat_tiled_json.tilesets[tileset_id].tilecount = id_count;
+    flat_tiled_json.tilesets[tileset_id].imageheight = flat_tileset_img.height;
+    flat_tiled_json.tilesets[tileset_id].imagewidth = flat_tileset_img.width;
   }
+
+  return JSON.stringify(flat_tiled_json);
+}
+
+async function ui_download() {
+
+  let tileset_name = ui_getSelect("ui_tileset");
+
+  let poms_cfg_fn = g_poms_default[tileset_name]["-C"];
+  let tiled_fn = g_poms_default[tileset_name]["-1"];
+  let tileset_img_ele = document.getElementById("img_" + tileset_name);
+  let flat_tileset_img_ele = document.getElementById("img_flat_" + tileset_name);
+
+  //let canvas_b64 = document.getElementById("ui_canvas").toDataURL("image/png");
+  let canvas_img = await g_ui_info.app.renderer.extract.image( g_ui_info.app.stage, "image/png" )
+  let canvas_b64 = canvas_img.src.replace(/^data:image\/?[A-z]*;base64,/, '');
+
+
+  let poms_txt = g_ui_info.worker_result.poms;
+  let tileset_imgdata = getBase64Image( tileset_img_ele );
+  let flat_tileset_imgdata = getBase64Image( flat_tileset_img_ele );
+  let tiled_txt = g_ui_info.worker_result.tiled;
+
+
+  let flat_tiled_txt = create_flat_tiled(tiled_txt, poms_txt, flat_tileset_img_ele);
+
+  let zip = new JSZip();
+  zip.file(tileset_name + "/" + tileset_name + "_img.png", canvas_b64, {"base64":true});
+  zip.file(tileset_name + "/" + tileset_name + "_tiled.json", tiled_txt);
+  zip.file(tileset_name + "/" + tileset_name + "_tileset.png", tileset_imgdata, {"base64":true});
+  zip.file(tileset_name + "/" + tileset_name + "_flat_tiled.json", flat_tiled_txt);
+  zip.file(tileset_name + "/" + tileset_name + "_flat_tileset.png", flat_tileset_imgdata, {"base64":true});
+  zip.file(tileset_name + "/" + tileset_name + "_poms.json", poms_txt);
+
+  zip.generateAsync({"type":"blob"})
+    .then( function(c) {
+      saveAs(c, tileset_name + ".zip");
+    });
 }
 
 function ui_getSelect(_id) {
@@ -261,7 +356,6 @@ function ui_setSelect(_id, v) {
 // CC-BY-SA 3.0 https://stackoverflow.com/users/616443/j08691
 //
 function html_encode(str) {
-    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 //----
 

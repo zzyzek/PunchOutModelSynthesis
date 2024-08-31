@@ -9,6 +9,8 @@
   <link rel="stylesheet" href="css/normalize.css">
   <link rel="stylesheet" href="css/skeleton.css">
 
+  <script type='text/javascript' src='js/jszip.js'></script>
+  <script type='text/javascript' src='js/FileSaver.js'></script>
 
   <!--  <link rel="icon" type="image/png" href="images/favicon.ico"> -->
   <script type='text/javascript' src='js/poms.js'></script>
@@ -148,7 +150,8 @@
     <div class="row">
       <div class="row">
         <div class="four columns" style='text-align:center;' >
-          <button id='ui_run' style='width:120px;  background:rgba(176,237,136,0.5);'>run</button>
+          <!-- <button id='ui_run' style='width:120px;  background:rgba(176,237,136,0.5);'>run</button> -->
+          <button id='ui_run' class='button-primary' style='width:120px;'>run</button>
         </div>
         <div class="four columns" style='text-align:left;'>
           <select class='u-full-width' id='ui_tileset'>
@@ -183,6 +186,42 @@
       <div class="twelve columns" id='ui_gfx'>
         <canvas id='ui_canvas' height='500px'></canvas>
       </div>
+    </div>
+
+    <div class='row'>
+
+      <div class="row"> <div class="twelve columns"> <img id="img_1985" src="img/1985_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_2bmmv" src="img/2bmmv_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_amarelo" src="img/amarelo_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_blowharder" src="img/blowharder_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_forestmicro" src="img/forestmicro_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_island" src="img/island_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_kyst" src="img/kyst_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_mccaves" src="img/mccaves_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_neondirt" src="img/neondirt_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_neondungeon" src="img/neondungeon_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_neonsnow" src="img/neonsnow_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_oarpgo" src="img/oarpgo_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_pillMortal" src="img/pillMortal_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_psygen" src="img/psygen_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_vilenes" src="img/vilenes_tileset.png"> </div> </div>
+
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_1985" src="img/1985_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_2bmmv" src="img/2bmmv_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_amarelo" src="img/amarelo_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_blowharder" src="img/blowharder_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_forestmicro" src="img/forestmicro_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_island" src="img/island_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_kyst" src="img/kyst_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_mccaves" src="img/mccaves_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_neondirt" src="img/neondirt_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_neondungeon" src="img/neondungeon_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_neonsnow" src="img/neonsnow_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_oarpgo" src="img/oarpgo_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_pillMortal" src="img/pillMortal_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_psygen" src="img/psygen_flat_tileset.png"> </div> </div>
+      <div class="row"> <div class="twelve columns"> <img id="img_flat_vilenes" src="img/vilenes_flat_tileset.png"> </div> </div>
+
     </div>
 
     <div class='row' id='ui_log'>
