@@ -27,6 +27,18 @@ em++ \
   ./web_poms.cpp \
   --preload-file 'html/data/pillMortal_poms.json@data/' \
   --preload-file 'html/data/forestmicro_poms.json@data/' \
+  --preload-file 'html/data/neondungeon_poms.json@data/' \
+  --preload-file 'html/data/neonsnow_poms.json@data/' \
+  --preload-file 'html/data/neondirt_poms.json@data/' \
+  --preload-file 'html/data/2bmmv_poms.json@data/' \
+  --preload-file 'html/data/1985_poms.json@data/' \
+  --preload-file 'html/data/amarelo_poms.json@data/' \
+  --preload-file 'html/data/kyst_poms.json@data/' \
+  --preload-file 'html/data/mccaves_poms.json@data/' \
+  --preload-file 'html/data/island_poms.json@data/' \
+  --preload-file 'html/data/blowharder_poms.json@data/' \
+  --preload-file 'html/data/psygen_poms.json@data/' \
+  --preload-file 'html/data/vilenes_poms.json@data/' \
   --preload-file 'html/data/oarpgo_poms.json@data/' \
   -sEXPORTED_RUNTIME_METHODS=ccall,cwrap,setValue \
   -sALLOW_MEMORY_GROWTH=1 \

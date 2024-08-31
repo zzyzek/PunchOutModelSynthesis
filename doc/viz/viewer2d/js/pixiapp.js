@@ -314,6 +314,9 @@ function update_pixi_tilemap(tiled_data) {
   g_tile_viewer_info.stride[1] = tileset_stride[1];
 
   if (tileset_url != g_tile_viewer_info.tilesetURL) {
+
+    PIXI.utils.clearTextureCache();
+
     g_tile_viewer_info.tilesetURL = tileset_url;
     PIXI.Assets.load( tileset_url ).then( (tex) => {
       load_tileset(tex);

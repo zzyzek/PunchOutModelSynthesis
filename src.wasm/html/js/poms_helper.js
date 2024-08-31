@@ -16,61 +16,6 @@ var g_ui_info = {
   "worker": null
 };
 
-var g_tileset_default = {
-  "pillMortal" : {
-    "-C" : "data/pillMortal_poms.json",
-    "-s": "48,48,1",
-    "-q": "64,64,1",
-    "-b": "1",
-    "-B": "8,8,1",
-    "-J":"10000",
-    "-w": "1.0",
-    "-E": "-1.95",
-    "-1": "pillMortal_tiled.json",
-    "-8": "pillMortal_snapshot.json",
-    "-P": "min",
-    "-O": "viz_step=50",
-    "-O": "patch-policy=pending",
-    "-S": "1337",
-    "-V": "1"
-  },
-  "oarpgo" : {
-    "-C" : "data/oarpgo_poms.json",
-    "-s": "50,70,1",
-    "-q": "256,256,1",
-    "-b": "1",
-    "-B": "12:24",
-    "-J":"10000",
-    "-w": "1.5",
-    "-E": "-1.75",
-    "-1": "oarpgo_tiled.json",
-    "-8": "oarpgo_snapshot.json",
-    "-P": "min",
-    "-O": "viz_step=50",
-    "-O": "patch-policy=cone-",
-    "-S": "1337",
-    "-V": "1"
-  },
-  "rrti": {
-    "-C" : "data/forestmicro_poms.json",
-    "-s": "48,48,1",
-    "-q": "128,128,1",
-    "-b": "1",
-    "-B": "8,8,1",
-    "-J":"10000",
-    "-w": "1.0",
-    "-E": "-1.95",
-    "-1": "forestmicro_tiled.json",
-    "-8": "forestmicro_snapshot.json",
-    "-P": "wf",
-    "-O": "viz_step=50",
-    "-O": "patch-policy=wf",
-    "-S": "1337",
-    "-V": "1"
-  }
-};
-
-
 function example_run() {
 
   // pillMortal_poms.json was preloaded/baked into the
@@ -217,20 +162,20 @@ function start_run() {
 
   console.log(tileset_name);
 
-  let poms_cfg = g_tileset_default[tileset_name]["-C"];
-  let tiled_fn = g_tileset_default[tileset_name]["-1"];
-  let snapshot_fn = g_tileset_default[tileset_name]["-8"];
+  let poms_cfg = g_poms_default[tileset_name]["-C"];
+  let tiled_fn = g_poms_default[tileset_name]["-1"];
+  let snapshot_fn = g_poms_default[tileset_name]["-8"];
 
   console.log(poms_cfg, tiled_fn, snapshot_fn);
 
   let _argv = [];
-  let _default_argmap = g_tileset_default[tileset_name];
+  let _default_argmap = g_poms_default[tileset_name];
   for (let opt_key in _default_argmap) {
     _argv.push(opt_key);
     _argv.push(_default_argmap[opt_key]);
   }
 
-  g_ui_info.snapshot_fn = g_tileset_default[tileset_name]["-8"];
+  g_ui_info.snapshot_fn = g_poms_default[tileset_name]["-8"];
 
   let msg = {
     "type":"run",

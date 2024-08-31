@@ -9,11 +9,13 @@
  */
 
 var g_wrk = {
+  "tiled_fn" : "",
   "snapshot_fn": "",
   "ready": false
 };
 
 importScripts("poms.js");
+
 
 // need this here because the emscripten runtime takes a while
 // to load. When instanciating the web worker we need to
@@ -44,6 +46,11 @@ onmessage = function(e) {
     if (argv[ii-1] == "-8") {
       g_wrk.snapshot_fn = argv[ii];
     }
+
+    if (argv[ii-1] == "-1") {
+      g_wrk.tiled_fn = argv[ii];
+    }
+
   }
 
   if (op == "run") {
@@ -56,7 +63,7 @@ onmessage = function(e) {
     postMessage("pong");
   }
   else if (op == "result") {
-    let json_txt = new TextDecoder().decode( FS.readFile("pillMortal_64x64.json") );
+    let json_txt = new TextDecoder().decode( FS.readFile(g_wrk.tiled_fn) );
     postMessage(json_txt);
   }
   else {
