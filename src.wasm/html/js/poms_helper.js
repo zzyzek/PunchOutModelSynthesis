@@ -240,7 +240,6 @@ function ui_update_log_lines(logline) {
   let div = document.createElement("div");
   div.classList.add("twelve");
   div.classList.add("columns");
-  //div.innerHTML = encodeURIComponent( logline );
   div.innerHTML = html_encode( logline );
 
   ele.appendChild(div);
@@ -356,6 +355,7 @@ function ui_setSelect(_id, v) {
 // CC-BY-SA 3.0 https://stackoverflow.com/users/616443/j08691
 //
 function html_encode(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 //----
 
