@@ -13,6 +13,8 @@ var g_ui_info = {
   "gfx": null,
   "init":false,
   "snapshot_fn" : "",
+  "worker_state": "ready",
+  "worker_counter": 0,
   "worker": null
 };
 
@@ -21,10 +23,42 @@ var g_ui_info = {
 //----
 
 function worker_update(e) {
-  var txt = e.data;
+  let msg_data = e.data;
+
+  if (!("type" in msg_data)) { console.log("ignoring", msg_data); return; }
+  if (msg_data.type == "fin") {
+    g_ui_info.worker_state = "ready";
+    ui_run_ready(true);
+    return;
+  }
+
+  else if (msg_data.type == "stdout") {
+    ui_update_log_lines( msg_data.data );
+    return;
+  }
+
+  else if (msg_data.type == "stderr") {
+    console.log("got(stderr):", msg_data.data);
+    return;
+  }
+
+  if (!("data" in msg_data)) { console.log("no data, ignoring", msg_data); return; }
+
+  var txt = msg_data.data;
   var data = JSON.parse(txt);
 
   update_pixi_tilemap(data);
+
+
+  let ele = document.getElementById("ui_run");
+  let _txt = ["running"];
+  for (let ii=0; ii<g_ui_info.worker_counter; ii++) {
+    _txt.push(".");
+  }
+  ele.innerHTML = _txt.join("");
+  g_ui_info.worker_counter ++;
+  g_ui_info.worker_counter %= 4;
+
 }
 
 
@@ -158,6 +192,8 @@ function start_run(dry_run) {
     return;
   }
 
+  ui_run_ready(false);
+
   g_ui_info.worker.postMessage(msg);
 }
 
@@ -167,6 +203,42 @@ function start_run(dry_run) {
 // | |_| || | 
 //  \___/|___|
 //            
+
+function ui_update_log_lines(logline) {
+  let ele = document.getElementById("ui_log");
+
+  if (typeof logline === "undefined") {
+    ele.innerHTML = '';
+    return;
+  }
+
+  let div = document.createElement("div");
+  div.classList.add("twelve");
+  div.classList.add("columns");
+  //div.innerHTML = encodeURIComponent( logline );
+  div.innerHTML = html_encode( logline );
+
+  ele.appendChild(div);
+
+}
+
+function ui_run_ready(ready_to_run) {
+  ready_to_run = ((typeof ready_to_run === "undefined") ? false : ready_to_run);
+  let ele = document.getElementById("ui_run");
+  if (ready_to_run) {
+    ele.innerHTML = "run";
+    ele.disabled = false;
+    ele.style.color = "rgba(80,80,80,1.0)";
+    ele.style.background='rgba(176,237,136,0.5)';
+  }
+  else {
+    ele.innerHTML = "running...";
+    ele.disabled = true;
+    ele.style.color = "rgba(80,80,80,0.5)";
+    ele.style.background = "rgba(0,0,0,0.2)";
+  }
+}
+
 function ui_getSelect(_id) {
   let ele = document.getElementById(_id);
   let idx = ele.selectedIndex;
@@ -183,6 +255,15 @@ function ui_setSelect(_id, v) {
   }
 
 }
+
+//----
+// https://stackoverflow.com/a/14130005/4002265
+// CC-BY-SA 3.0 https://stackoverflow.com/users/616443/j08691
+//
+function html_encode(str) {
+    return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+//----
 
 function ui_getNum(_id) {
   let ele = document.getElementById(_id);
@@ -288,6 +369,7 @@ function setup_ui_callbacks() {
   document.getElementById("ui_run").addEventListener("click",
     function(e) {
       start_run();
+      ui_update_log_lines();
       //example_run_worker();
     });
 
@@ -321,32 +403,6 @@ function setup_ui_callbacks() {
       let _d = document.getElementById("ui_dialog");
       _d.open = false;
     });
-
-  // info dialog
-  //
-  /*
-  document.getElementById("ui_info_button").addEventListener("click",
-    function(e) {
-      let _d = document.getElementById("ui_info_dialog");
-      _d.open = true;
-    }
-  );
-
-  document.getElementById("ui_info_dialog").addEventListener("click",
-    function(e) {
-      let _d = document.getElementById("ui_info_dialog");
-      _d.open = true;
-    }
-  );
-
-  document.getElementById("ui_info_dialog_close").addEventListener("click",
-    function(e) {
-      let _d = document.getElementById("ui_info_dialog");
-      _d.open = false;
-    }
-  );
-  */
-
 
 }
 

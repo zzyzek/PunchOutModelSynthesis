@@ -9,10 +9,20 @@
  */
 
 var g_wrk = {
+
+  "stdout_buf": "",
+  "stderr_buf": "",
+
+  "buf" : [],
+  "buf_n" : 0,
+  "buf_max" : 1024,
   "tiled_fn" : "",
   "snapshot_fn": "",
   "ready": false
 };
+
+
+for (let ii=0; ii<g_wrk.buf_max; ii++) { g_wrk.buf.push(''); }
 
 importScripts("poms.js");
 
@@ -26,11 +36,55 @@ Module['onRuntimeInitialized'] = function() {
   g_wrk.ready = true;
 }
 
+function in_cb() {
+  return 0;
+};
+
+function out_cb(x) {
+  let ch = String.fromCharCode(x);
+  g_wrk.stdout_buf += ch;
+  if (g_wrk.stdout_buf.length > g_wrk.stdout_buf) {
+
+    postMessage({"type":"stdout", "code":"maxbuf", "data":g_wrk.stdout_buf});
+
+    g_wrk.stdout_buf = '';
+
+  }
+
+  if (ch == '\n') {
+    postMessage({"type":"stdout", "code":"line", "data":g_wrk.stdout_buf});
+    g_wrk.stdout_buf = '';
+  }
+
+}
+
+function err_cb(x) {
+  let ch = String.fromCharCode(x);
+  g_wrk.stderr_buf += ch;
+  if (g_wrk.stderr_buf.length > g_wrk.stderr_buf) {
+
+    postMessage({"type":"stderr", "code":"maxbuf", "data":g_wrk.stderr_buf});
+
+    g_wrk.stderr_buf = '';
+  }
+
+  if (ch == '\n') {
+    postMessage({"type":"stderr", "code":"line", "data":g_wrk.stderr_buf});
+    g_wrk.stderr_buf = '';
+  }
+
+
+}
+
+Module.preRun.push( function() {
+  FS.init(in_cb, out_cb, err_cb);
+});
+
+//Module.preRun = function() { console.log("prerun"); }
+
 onmessage = function(e) {
   let msg = e.data;
   let op = msg.type;
-
-  console.log(msg);
 
   if (!g_wrk.ready) {
     setTimeout( (function(_e) { return function() { onmessage(_e); } })(e), 10 );
@@ -56,18 +110,16 @@ onmessage = function(e) {
   if (op == "run") {
     main_like( Module._main, argv );
   }
-  else if (op == "start") {
-    example_run();
-  }
+  //else if (op == "start") { example_run(); }
   else if (op == "ping") {
-    postMessage("pong");
+    postMessage({"type":"pong"});
   }
   else if (op == "result") {
     let json_txt = new TextDecoder().decode( FS.readFile(g_wrk.tiled_fn) );
-    postMessage(json_txt);
+    postMessage({ "type":"data", "data":json_txt});
   }
   else {
-    postMessage("unknown op");
+    postMessage({"type":"error", "message":"unknown op"});
   }
 
 }
@@ -128,11 +180,13 @@ function main_like(f_cb, param) {
   _free(ptr_a);
   free_charpp(c_charpp);
 
+
+  postMessage({"type":"fin", "code":rc});
+
   return rc;
 }
 
 function example_run() {
-
   // pillMortal_poms.json was preloaded/baked into the
   // emscripten port, so we have a copy in data/ but
   // that's not the copy referenced below
@@ -156,11 +210,8 @@ function example_run() {
     "-V", "1"
   ];
   main_like( Module._main, argv );
-
   let json_txt = new TextDecoder().decode( FS.readFile("pillMortal_64x64.json") );
-
   let out_json = JSON.parse(json_txt);
-
   return out_json;
 }
 
@@ -174,7 +225,7 @@ function web_worker_cb() {
     //json_txt = new TextDecoder().decode( FS.readFile("pillMortal_snapshot.json") );
     json_txt = new TextDecoder().decode( FS.readFile(g_wrk.snapshot_fn) );
   }
-  postMessage(json_txt);
+  postMessage({"type":"data", "data":json_txt});
 }
 
 
