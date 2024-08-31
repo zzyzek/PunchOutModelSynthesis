@@ -3171,12 +3171,6 @@ int poms_main(int argc, char **argv) {
   poms.m_soften_size[1] = opt.soften_window.soften_min[1];
   poms.m_soften_size[2] = opt.soften_window.soften_min[2];
 
-  if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-    printf("## soften_window:{min:[%i,%i,%i], max:[%i,%i,%i]}\n",
-        opt.soften_window.soften_min[0], opt.soften_window.soften_min[1], opt.soften_window.soften_min[2],
-        opt.soften_window.soften_max[0], opt.soften_window.soften_max[1], opt.soften_window.soften_max[2]);
-  }
-
   /*
   opt.window_fail.resize(128);
   opt.window_fail_s = 0;
@@ -3197,6 +3191,25 @@ int poms_main(int argc, char **argv) {
   }
 
   poms.clampParameters();
+
+  if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+    printf("## soften_window:{min:[%i,%i,%i], max:[%i,%i,%i]}\n",
+        opt.soften_window.soften_min[0], opt.soften_window.soften_min[1], opt.soften_window.soften_min[2],
+        opt.soften_window.soften_max[0], opt.soften_window.soften_max[1], opt.soften_window.soften_max[2]);
+    printf("## m_quilt_size[%i,%i,%i]\n",
+        (int)poms.m_quilt_size[0],
+        (int)poms.m_quilt_size[1],
+        (int)poms.m_quilt_size[2]);
+    printf("## m_block_size[%i,%i,%i]\n",
+        (int)poms.m_block_size[0],
+        (int)poms.m_block_size[1],
+        (int)poms.m_block_size[2]);
+    printf("## m_size[%i,%i,%i]\n",
+        (int)poms.m_size[0],
+        (int)poms.m_size[1],
+        (int)poms.m_size[2]);
+  }
+
 
   //----
 

@@ -1042,6 +1042,10 @@ class POMS {
     }
 
     void clampParameters(void) {
+      if (m_size[0] > m_quilt_size[0]) { m_size[0] = m_quilt_size[0]; }
+      if (m_size[1] > m_quilt_size[1]) { m_size[1] = m_quilt_size[1]; }
+      if (m_size[2] > m_quilt_size[2]) { m_size[2] = m_quilt_size[2]; }
+
       if (m_block_size[0] > m_size[0]) { m_block_size[0] = m_size[0]; }
       if (m_block_size[1] > m_size[1]) { m_block_size[1] = m_size[1]; }
       if (m_block_size[2] > m_size[2]) { m_block_size[2] = m_size[2]; }
