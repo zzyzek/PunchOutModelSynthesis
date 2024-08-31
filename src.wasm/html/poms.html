@@ -23,7 +23,7 @@
 </head>
 
 <body>
-  <div class='container'>
+  <div class='container' id='ui_container'>
 
     <dialog id='ui_dialog' >
       <p>Punch Out Model Synthesis Parameters</p>
@@ -107,9 +107,9 @@
 
       <div class="row">
         <div class="three columns" > viz step </div>
-        <div class="three columns" > <input id='ui_vizstep' type='text' size='2'/> </div>
+        <div class="three columns" > <input id='ui_viz_step' type='text' size='2'/> </div>
         <div class="three columns" > &nbsp; </div>
-        <div class="three columns"> <button id='ui_vizstep_default'>default</button> </div>
+        <div class="three columns"> <button id='ui_viz_step_default'>default</button> </div>
       </div>
 
       <div class="row">
@@ -132,37 +132,49 @@
     </dialog>
 
     <div class="row" style='margin-top: 5%;'>
-      <div class="twelve columns" >
+      <div class="eight columns" >
         <h4>Punch Out Model Synthesis</h4>
       </div>
+      <div class="three columns">
+        <!-- <button id='ui_info_button' style='border:0px;'> -->
+        <a href='poms_info.html' >
+          <img style='width:30px;' src='img/info.svg'></img>
+          <!-- <img style='width:60%; margin-top:20%;' src='img/info.svg'></img> -->
+        </a>
+          <!-- </button> -->
+      </div>
+      <div class="one columns">&nbsp;</div>
     </div>
 
     <div class="row">
       <div class="row">
         <div class="four columns" style='text-align:center;' >
-          <button id='ui_run' style='background:#efe;'>run</button>
+          <button id='ui_run' style='background:rgba(176,237,136,0.5);'>run</button>
         </div>
         <div class="four columns" style='text-align:left;'>
           <select class='u-full-width' id='ui_tileset'>
             <option value='pillMortal'>Pill Mortal</option>
             <option value='2bmmv'>2bit Micro Metroidvania</option>
+            <option value='forestmicro'>Forest Micro</option>
+            <option value='oarpgo'>Overhead Action RPG Overworld</option>
             <option value='1985'>1985</option>
             <option value='amarelo'>Amarelo</option>
             <option value='kyst'>Kyst</option>
             <option value='mccaves'>Mc-Caves</option>
             <option value='island'>Island</option>
-            <option value='forestmicro'>Forest Micro</option>
             <option value='neondungeon'>Neon Dungeon</option>
             <option value='neondirt'>Neon Dirt</option>
             <option value='neonsnow'>Neon snow</option>
             <option value='blowharder'>Blowharder</option>
             <option value='psygen'>Psygen</option>
             <option value='vilenes'>Vilenes</option>
-            <option value='oarpgo'>Overhead Action RPG Overworld</option>
           </select>
         </div>
         <div class="four columns" style='text-align:center;'>
-          <button id='ui_option' style='background:#ffe;'>options</button>
+          <!-- <button id='ui_option' style='background:rgba(255,254,170,0.5);'>options</button> -->
+          <button id='ui_option' >
+            options
+          </button>
         </div>
 
       </div>
@@ -170,9 +182,34 @@
 
     <div class="row">
       <div class="twelve columns" id='ui_gfx'>
-        <canvas id='ui_canvas'></canvas>
+        <canvas id='ui_canvas' height='500px'></canvas>
       </div>
     </div>
+
+    <div class='row' id='ui_log'>
+      <div class="twelve columns" id='ui_log_0'>
+        init
+      </div>
+    </div>
+
+  <dialog id='ui_info_dialog' >
+    <p>Punch Out Model Synthesis</p>
+    <hr>
+
+    <p>...</p>
+
+    <hr>
+
+    <div class="row">
+      <div class='ten columns'> &nbsp; </div>
+      <div class='two columns'>
+        <button id='ui_info_dialog_close'>Close</button>
+      </div>
+
+    </div>
+
+  </dialog>
+
 
 
   </div>

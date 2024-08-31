@@ -662,9 +662,10 @@ function _keydown(ev) {
   return false;
 }
 
-function setup_keyboard(val) {
-  window.addEventListener("keydown", _keydown, false);
-  window.addEventListener("keyup", _keyup, false);
+function setup_keyboard(ui_ele) {
+  ui_ele = ((typeof ui_ele === "undefined") ? window : ui_ele);
+  ui_ele.addEventListener("keydown", _keydown, false);
+  ui_ele.addEventListener("keyup", _keyup, false);
 }
 
 function mouse_move(ev) {
