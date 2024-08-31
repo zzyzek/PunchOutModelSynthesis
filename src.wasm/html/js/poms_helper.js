@@ -35,6 +35,12 @@ function worker_update(e) {
     g_ui_info.worker_result = e.data;
 
     ui_run_ready(true);
+
+    // let download
+    //
+    let dl_btn = document.getElementById("ui_download");
+    dl_btn.classList.remove("button-disabled");
+
     return;
   }
 
@@ -226,6 +232,9 @@ function ui_run_ready(ready_to_run) {
 
     ele.classList.remove("button-primary");
     ele.classList.add("button-disabled");
+
+    let dl_btn = document.getElementById("ui_download");
+    dl_btn.classList.add("button-disabled");
   }
 }
 
@@ -498,6 +507,18 @@ function setup_ui_callbacks() {
       _d.open = false;
     });
 
+  //-----
+  //-----
+
+  document.getElementById("ui_download").addEventListener("click",
+    function(e) {
+      let ele = document.getElementById("ui_download");
+      if (ele.classList.contains("button-disabled")) { return false; }
+
+      ui_download();
+    });
+
+
 }
 
 function poms_web_init() {
@@ -524,5 +545,8 @@ function poms_web_init() {
 
   g_ui_info.worker = new Worker("js/poms_worker.js");
   g_ui_info.worker.onmessage = worker_update;
+
+
+  ui_update_log_lines();
 }
 
