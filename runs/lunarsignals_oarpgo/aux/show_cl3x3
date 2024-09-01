@@ -34,8 +34,8 @@ def loadfile(fn):
   nd_a = np.array(a)
   return nd_a
 
-simple_taccl = loadfile("snoloz_simple_wUbW3x3.taccl")
-freq_taccl = loadfile("snoloz_freq_wUbW3x3.taccl")
+simple_taccl = loadfile("oarpgo_simple_wUbW3x3.taccl")
+freq_taccl = loadfile("oarpgo_freq_wUbW3x3.taccl")
 
 
 def outplot(nd_a, fn, title):
@@ -50,8 +50,8 @@ def outplot(nd_a, fn, title):
   plt.clf()
 
 
-outplot(simple_taccl, "snoloz_simple_taccl_wUbW3x3.png", TILESET_NAME + "\nSimple Tile Arc Consistent Correlation Length")
-outplot(freq_taccl, "snoloz_freq_taccl_wUbW3x3.png", TILESET_NAME + "\nFrequency Tile Arc Consistent Correlation Length")
+outplot(simple_taccl, "oarpgo_simple_taccl_wUbW3x3.png", TILESET_NAME + "\nSimple Tile Arc Consistent Correlation Length")
+outplot(freq_taccl, "oarpgo_freq_taccl_wUbW3x3.png", TILESET_NAME + "\nFrequency Tile Arc Consistent Correlation Length")
 
 
 
