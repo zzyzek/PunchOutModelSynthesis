@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   width="210mm"
+   height="210mm"
+   viewBox="0 0 210 210"
+   version="1.1"
+   id="svg1334"
+   inkscape:version="1.1.2 (0a00cf5339, 2022-02-04)"
+   sodipodi:docname="die6.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview1336"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:document-units="mm"
+     showgrid="false"
+     height="210mm"
+     inkscape:zoom="0.32026164"
+     inkscape:cx="98.357079"
+     inkscape:cy="499.59151"
+     inkscape:window-width="1692"
+     inkscape:window-height="1085"
+     inkscape:window-x="2084"
+     inkscape:window-y="54"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="layer1" />
+  <defs
+     id="defs1331">
+    <inkscape:path-effect
+       effect="fillet_chamfer"
+       id="path-effect848"
+       is_visible="true"
+       lpeversion="1"
+       satellites_param="F,0,0,1,0,10.583333,0,1 @ F,0,0,1,0,10.583333,0,1 @ F,0,0,1,0,10.583333,0,1 @ F,0,0,1,0,10.583333,0,1"
+       unit="px"
+       method="auto"
+       mode="F"
+       radius="40"
+       chamfer_steps="1"
+       flexible="false"
+       use_knot_distance="true"
+       apply_no_radius="true"
+       apply_with_radius="true"
+       only_selected="false"
+       hide_knots="false" />
+  </defs>
+  <g
+     inkscape:label="Layer 1"
+     inkscape:groupmode="layer"
+     id="layer1">
+    <g
+       id="g1329"
+       transform="matrix(2.4481122,0,0,2.4481122,-116.52833,-183.97504)">
+      <path
+         style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+         id="rect846"
+         width="77.150688"
+         height="77.150688"
+         x="52.181717"
+         y="79.442177"
+         sodipodi:type="rect"
+         inkscape:path-effect="#path-effect848"
+         d="m 62.76505,79.442177 h 55.98402 a 10.583333,10.583333 45 0 1 10.58334,10.583333 v 55.98402 a 10.583333,10.583333 135 0 1 -10.58334,10.58333 H 62.76505 A 10.583333,10.583333 45 0 1 52.181717,146.00953 V 90.02551 A 10.583333,10.583333 135 0 1 62.76505,79.442177 Z" />
+      <circle
+         style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+         id="path872"
+         cx="73.543152"
+         cy="95.795357"
+         r="7.9546189" />
+      <circle
+         style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+         id="path872-6"
+         cx="73.543152"
+         cy="118.01752"
+         r="7.9546189" />
+      <circle
+         style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+         id="path872-7"
+         cx="73.543152"
+         cy="140.2397"
+         r="7.9546189" />
+      <circle
+         style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+         id="path872-3"
+         cx="108.60835"
+         cy="95.795357"
+         r="7.9546189" />
+      <circle
+         style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+         id="path872-6-5"
+         cx="108.60835"
+         cy="118.01752"
+         r="7.9546189" />
+      <circle
+         style="fill:none;stroke:#000000;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:4;stroke-dasharray:none;stop-color:#000000"
+         id="path872-7-6"
+         cx="108.60835"
+         cy="140.2397"
+         r="7.9546189" />
+    </g>
+  </g>
+</svg>

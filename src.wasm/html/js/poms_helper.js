@@ -501,11 +501,19 @@ function setup_ui_callbacks() {
       _d.open = false;
     });
 
+  document.getElementById("ui_dialog_close").addEventListener("click",
+    function(e) {
+      let _d = document.getElementById("ui_dialog");
+      _d.open = false;
+
+  });
+  /*
   document.getElementById("ui_option_cancel").addEventListener("click",
     function(e) {
       let _d = document.getElementById("ui_dialog");
       _d.open = false;
     });
+  */
 
   //-----
   //-----
@@ -517,6 +525,119 @@ function setup_ui_callbacks() {
 
       ui_download();
     });
+
+
+  //-----
+  //-----
+  // default buttons in dialog
+  //
+
+  document.getElementById("ui_blocksize_default").addEventListener("click",
+    function(e) {
+      let ele_x = document.getElementById("ui_blocksize_x");
+      let ele_y = document.getElementById("ui_blocksize_y");
+      let tileset_name = ui_getSelect("ui_tileset");
+      ele_x.value = g_poms_default[tileset_name]["-s"].split(",")[0];
+      ele_y.value = g_poms_default[tileset_name]["-s"].split(",")[1];
+    });
+
+  document.getElementById("ui_gridsize_default").addEventListener("click",
+    function(e) {
+      let ele_x = document.getElementById("ui_gridsize_x");
+      let ele_y = document.getElementById("ui_gridsize_y");
+      let tileset_name = ui_getSelect("ui_tileset");
+      ele_x.value = g_poms_default[tileset_name]["-q"].split(",")[0];
+      ele_y.value = g_poms_default[tileset_name]["-q"].split(",")[1];
+    });
+
+  document.getElementById("ui_softensize_default").addEventListener("click",
+    function(e) {
+      let ele_x_s = document.getElementById("ui_softensize_x_start");
+      let ele_y_s = document.getElementById("ui_softensize_y_start");
+      let ele_x_e = document.getElementById("ui_softensize_x_end");
+      let ele_y_e = document.getElementById("ui_softensize_y_end");
+
+      let tileset_name = ui_getSelect("ui_tileset");
+
+      let soften_se = [['',''],['','']];
+
+      let tok = g_poms_default[tileset_name]["-B"].split(":");
+      let tok_v = tok[0].split(",");
+
+      soften_se[0][0] = tok_v[0];
+      if (tok_v.length > 1) { soften_se[0][1] = tok_v[1]; }
+
+      soften_se[1][0] = soften_se[0][0];
+      soften_se[1][1] = soften_se[0][1];
+
+      if (tok.length > 0) {
+        tok_v = tok_v[1].split(",");
+        soften_se[1][0] = tok_v[0];
+        if (tok_v.length > 1) { soften_se[1][1] = tok_v[1]; }
+      }
+
+      ele_x_s.value = soften_se[0][0];
+      ele_y_s.value = soften_se[0][1];
+
+      ele_x_e.value = soften_se[1][0];
+      ele_y_e.value = soften_se[1][1];
+    });
+
+  document.getElementById("ui_maxiter_default").addEventListener("click",
+    function(e) {
+      let ele = document.getElementById("ui_maxiter");
+      let tileset_name = ui_getSelect("ui_tileset");
+      ele.value = g_poms_default[tileset_name]["-J"];
+    }
+  );
+
+  document.getElementById("ui_rand_default").addEventListener("click",
+    function(e) {
+      let ele_w = document.getElementById("ui_rand_w");
+      let ele_E = document.getElementById("ui_rand_E");
+      let tileset_name = ui_getSelect("ui_tileset");
+      ele_w.value = g_poms_default[tileset_name]["-w"];
+      ele_E.value = g_poms_default[tileset_name]["-E"];
+    }
+  );
+
+  document.getElementById("ui_cell_choice_policy_default").addEventListener("click",
+    function(e) {
+      let tileset_name = ui_getSelect("ui_tileset");
+      ui_setSelect("ui_cell_choice_policy", g_poms_default[tileset_name]["-P"]);
+    }
+  );
+
+  document.getElementById("ui_block_choice_policy_default").addEventListener("click",
+    function(e) {
+      let tileset_name = ui_getSelect("ui_tileset");
+      ui_setSelect("ui_block_choice_policy", g_poms_default[tileset_name]["-O patch-policy"]);
+    }
+  );
+
+  document.getElementById("ui_viz_step_default").addEventListener("click",
+    function(e) {
+      let ele = document.getElementById("ui_viz_step");
+      let tileset_name = ui_getSelect("ui_tileset");
+      ele.value = g_poms_default[tileset_name]["-O viz_step"];
+    }
+  );
+
+  document.getElementById("ui_seed_default").addEventListener("click",
+    function(e) {
+      let ele = document.getElementById("ui_seed");
+      let tileset_name = ui_getSelect("ui_tileset");
+      ele.value = g_poms_default[tileset_name]["-S"];
+    }
+  );
+
+  document.getElementById("ui_seed_random").addEventListener("click",
+    function(e) {
+      let ele = document.getElementById("ui_seed");
+      ele.value = Math.floor(Math.random()*100000);
+    }
+  );
+
 
 
 }

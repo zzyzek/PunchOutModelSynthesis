@@ -28,7 +28,14 @@
   <div class='container' id='ui_container'>
 
     <dialog id='ui_dialog' >
-      <p>Punch Out Model Synthesis Parameters</p>
+      <div class="row">
+        <div class='ten columns'> Punch Out Model Synthesis Parameters </div>
+        <div class='two columns'>
+          <button style='color:#777; border:0;' id='ui_dialog_close'> &nbsp; X &nbsp;</button>
+        </div>
+      </div>
+
+      <hr>
 
       <div class="row">
         <div class="three columns" > blockSize (x,y) </div>
@@ -80,7 +87,9 @@
             <option value='wf'>wavefront</option>
           </select>
         </div>
-        <div class="three columns"> &nbsp; </div>
+        <div class="three columns">
+          <button id='ui_cell_choice_policy_default'>default</button>
+        </div>
 
       </div>
 
@@ -104,7 +113,9 @@
             <option value='wf3'>wavefront3</option>
           </select>
         </div>
-        <div class="three columns"> &nbsp; </div>
+        <div class="three columns">
+          <button id='ui_block_choice_policy_default'>default</button>
+        </div>
 
       </div>
 
@@ -117,8 +128,12 @@
 
       <div class="row">
         <div class="three columns" > seed </div>
-        <div class="three columns" > <input id='ui_seed' type='text' size='6'/> </div>
-        <div class="three columns" > &nbsp; </div>
+        <div class="three columns" > <input id='ui_seed' type='text' size='9'/> </div>
+        <div class="three columns" style='text-align:left;'>
+          <button style='border:0px;' id='ui_seed_random'>
+            <img src='img/die6.svg' style='height:50%;'></img>
+          </button>
+        </div>
         <div class="three columns"> <button id='ui_seed_default'>default</button> </div>
       </div>
 
@@ -127,7 +142,7 @@
       <div class="row">
         <div class="four columns" style='text-align:center;'> <button id='ui_option_accept'>ok</button> </div>
         <div class="four columns" > &nbsp; </div>
-        <div class="four columns" style='text-align:center;'> <button id='ui_option_cancel'>cancel</button> </div>
+        <div class="four columns" style='text-align:center;'> &nbsp; </div>
       </div>
 
 
