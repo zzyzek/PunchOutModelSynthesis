@@ -3,14 +3,14 @@
 ## image
 ../../bin/poms \
   -C ./data/amarelo_poms.json \
-  -s 48,48,1 \
+  -s 128,128,1 \
   -q 128,128,1 \
   -b 1 \
   -B 24:32  \
   -J 10000 \
   -w 1.5  \
   -E -1.25 \
-  -P min \
+  -P 'wf=xyz' \
   -O 'viz_step=50' \
   -O 'patch-policy=pending' \
   -S 1337 \

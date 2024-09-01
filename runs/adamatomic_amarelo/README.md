@@ -13,6 +13,9 @@ POMS has major problems converging for the Amarelo tile set,
 so this run directory still needs some work to find example
 runs that reliably work.
 
+Currently, this has good success when straight BMS is used
+(patch size is the whole quilt size).
+
 
 | Example | Sample Run |
 |---|---|
@@ -30,11 +33,20 @@ Parameters
 ```
 ../../bin/poms \
   -C ./data/amarelo_poms.json \
-  -b 1 -B 32 \
-  -w 1 -E -1.5 \
+  -s 128,128,1 \
+  -q 128,128,1 \
+  -b 1 \
+  -B 24:32  \
+  -J 10000 \
+  -w 1.5  \
+  -E -1.25 \
+  -P 'wf=xyz' \
+  -O 'viz_step=50' \
+  -O 'patch-policy=pending' \
   -S 1337 \
-  -V 2 \
-  -1 ./amarelo_128x128.json
+  -V 1 \
+  -1 ./data/amarelo_128x128.json \
+  -8 ./data/amarelo_snapshot.json
 ```
 
 Tile set creation
