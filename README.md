@@ -18,19 +18,23 @@ This project has a set of tools to automatically create tile sets and tile rule 
 from exemplar (2D) images as well as some example code to programatically generate 3D tilesets.
 For advanced users, there are a set of auxiliary web applications to allow for run visualization.
 
-Overview
+[Demo](https://zzyzek.github.io/PunchOutModelSynthesis)
+---
+
+[Online demo](https://zzyzek.github.io/PunchOutModelSynthesis)
+
+Quick Start
 ---
 
 ```
 git clone https://zzyzek/PunchOutModelSynthesis
 cd PunchOutModelSynthesis/src ; make ; make ir
-cd ../src.js ; npm i
 cd ../runs/pillMortal
-./init.sh # generate POMS config file
 ./run.sh  # run POMS to create a 128x128 pillMortal level
 ```
 
 ![Pill Mortal 128x128 level](runs/pillMortal/data/pillMortal_128x128.png)
+
 
 LICENSE
 ---
