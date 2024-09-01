@@ -1,0 +1,92 @@
+#!/usr/bin/python3
+#
+# To the extent possible under law, the person who associated CC0 with
+# this work has waived all copyright and related or neighboring rights
+# to this work.
+#
+# You should have received a copy of the CC0 legalcode along with this
+# work. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+#
+
+import sys
+import re
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as colors
+
+a = []
+vox = []
+
+#titles = [ "z=0", "z=1", "z=2", "z=3", "z=4", "z=5", "z=6", "z=7" ]
+#titles = [ "dz=-3", "dz=-2", "dz=-1", "dz=0", "dz=1", "dz=2", "dz=3", "dz=4" ]
+
+
+
+N = 32
+Ys = 10
+
+titles = []
+for ii in range(N - 2*Ys):
+  #titles.append( "y=" + str(ii + Ys - int(N/2)) )
+  titles.append( "y=" + str(ii + Ys) )
+
+
+for y in range(N):
+  vox.append( np.zeros(shape=(N,N)) )
+
+for line in sys.stdin:
+  line = line.strip()
+  if len(line)==0: continue
+  if line[0] == '#': continue
+
+  tok = re.split('  *', line);
+  if len(tok) != 4: continue
+
+  x = int(tok[0])
+  y = int(tok[1])
+  z = int(tok[2])
+
+  vox[y][x][z] = int(tok[3])
+
+  #print(y,x,z,vox[y][x][z])
+
+
+#fig,axs = plt.subplots(nrows=4,ncols=8,figsize=(9,6), subplot_kw={'xticks':[], 'yticks':[]})
+fig,axs = plt.subplots(3,4, figsize=(10,10))
+
+ims = []
+
+y = 0
+for ax, title in zip(axs.flat, titles):
+
+  aa = []
+  for x in range(len(vox[y+Ys])):
+    for z in range(len(vox[y+Ys][x])):
+      aa.append(vox[y+Ys][x][z])
+
+  #nd_a = np.array(vox[y+Ys])
+  nd_a = np.array(aa)
+
+  #im = ax.imshow(vox[z], interpolation=None, cmap='magma', vmin=0)
+  #im = ax.imshow(vox[y + Ys], interpolation='nearest', cmap='viridis', vmin=0)
+  im = ax.imshow(vox[y + Ys], interpolation='nearest', cmap='viridis', origin='lower', norm=colors.SymLogNorm(linthresh=1, vmin=nd_a.min(), vmax=nd_a.max(), base=10))
+  ax.set_title(title)
+  ax.set_xlabel('x')
+  ax.set_ylabel('z')
+  y+=1
+
+  ims.append(im)
+plt.tight_layout()
+
+fig.suptitle("Brutal Plum Tileset\nFrequency Tile Arc Consistent Correlation Length")
+
+print(ims)
+
+fig.subplots_adjust(right=0.8)
+cbar_ax = fig.add_axes([0.85,0.15,0.05,0.7])
+fig.colorbar(ims[4], cax=cbar_ax)
+
+
+plt.show()
+
+

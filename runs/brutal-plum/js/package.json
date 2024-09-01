@@ -1,0 +1,11 @@
+{
+  "dependencies": {
+    "@jscad/array-utils": "^2.1.4",
+    "@jscad/modeling": "^2.12.2",
+    "@jscad/obj-deserializer": "^2.0.27",
+    "@jscad/obj-serializer": "^2.1.17",
+    "@jscad/stl-deserializer": "^2.1.24",
+    "@jscad/stl-serializer": "^2.1.17",
+    "numeric": "^1.2.6"
+  }
+}
