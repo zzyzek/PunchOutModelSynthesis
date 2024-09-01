@@ -10,7 +10,7 @@ Results
 
 | Example | Sample Run |
 |---|---|
-| ![input map](data/jawbreaker_fixed.png) | ![generated map](jawbreaker_128x128.png) |
+| ![input map](data/jawbreaker_fixed.png) | ![generated map](data/jawbreaker_128x128.png) |
 
 | Simple ACCL | Frequency ACCL |
 |---|---|
