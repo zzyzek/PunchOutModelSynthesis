@@ -271,6 +271,10 @@ function _build_poms_nei_info(poms) {
   return _nei_info;
 }
 
+// called once on load, creates the HTML elements
+// and initial pixi application/stage/whatever
+// for the exemplar image and tileset
+//
 function pixi_init() {
 
   let app_exemplar = new PIXI.Application({
@@ -302,9 +306,18 @@ function pixi_init() {
 
   let _col0 = document.createElement("div");
   _col0.classList.add("six","columns");
+  _col0.id = 'ui_exemplar_container';
+  _col0.style["max-height"] = "486px";
+  _col0.style["max-width"] = "486px";
+  _col0.style["overflow"] = "scroll";
 
   let _col1 = document.createElement("div");
   _col1.classList.add("six","columns");
+  _col1.id = 'ui_tileset_container';
+  _col1.style["max-height"] = "486px";
+  _col1.style["max-width"] = "486px";
+  _col1.style["overflow"] = "scroll";
+
 
   _col0.appendChild(app_exemplar.view);
   _col1.appendChild(app_tileset.view);
@@ -346,6 +359,10 @@ function pixi_init() {
 
 }
 
+// loads the exemplar canvas and tileset canvas pixi app
+// by removing the previously allocated pxi app/stage/whatever
+// and replacing it with the new one.
+//
 function pixi_load(exemplar_img, tileset_img, poms) {
 
   if (g_app.tileset_sprite.length > 0) {

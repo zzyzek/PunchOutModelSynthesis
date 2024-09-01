@@ -30,7 +30,8 @@
   var g_fu = {
     "fileUpload": {},
     "tile_stride": [16,16],
-    "tile_window":[32,32]
+    "tile_window":[32,32],
+    "tile_offset":[0,0]
   };
 
   var _init_counter = 0;
@@ -38,7 +39,7 @@
   function _init0() { _init_counter++; if (_init_counter>=2) { _init2(); } }
   function _init1() { _init_counter++; if (_init_counter>=2) { _init2(); } }
   function _init2() {
-    hiddenExemplarOnLoad("img/rrti.png", 16,32);
+    hiddenExemplarOnLoad("img/rrti.png", 16,32,0);
   }
 
 
@@ -47,9 +48,11 @@
 
     let ui_stride_x = document.getElementById("ui_tile_stride_x");
     let ui_window_x = document.getElementById("ui_tile_window_x");
+    let ui_offset_x = document.getElementById("ui_tile_offset_x");
 
     let stride_x = parseInt(ui_stride_x.value);
     let window_x = parseInt(ui_window_x.value);
+    let offset_x = parseInt(ui_offset_x.value);
 
     // pixi will cache the image based on the _pixiId,
     // so delete it here so we can actually reload the
@@ -61,9 +64,9 @@
     if ("_pixiId" in timg) { delete timg["_pixiId"]; }
 
     eimg.src = g_fu.fileUpload.img.src;
-    eimg.onload = (function(_src,_sx,_wx) {
-      return function() { hiddenExemplarOnLoad( _src, _sx, _wx); };
-    })(eimg.src, stride_x, window_x);
+    eimg.onload = (function(_src,_sx,_wx, _ox) {
+      return function() { hiddenExemplarOnLoad( _src, _sx, _wx, _ox); };
+    })(eimg.src, stride_x, window_x, offset_x);
 
     let modal = document.querySelector('.modal');
     modal.classList.toggle('modal-open');
@@ -71,13 +74,16 @@
 
   }
 
-  function hiddenExemplarOnLoad(_src,_tile_stride,_win) {
+  function hiddenExemplarOnLoad(_src,_tile_stride,_win, _off) {
 
     g_fu.tile_stride[0] = _tile_stride;
     g_fu.tile_stride[1] = _tile_stride;
 
     g_fu.tile_window[0] = _win;
     g_fu.tile_window[1] = _win;
+
+    g_fu.tile_offset[0] = _off;
+    g_fu.tile_offset[1] = _off;
 
     let _timg = document.getElementById("ui_tileset");
 
@@ -90,7 +96,7 @@
     //DEBUG
     console.log("heol:",g_fu.tile_stride[0], g_fu.tile_window[0]);
 
-    _runImg2Tile(g_fu.tile_stride[0], g_fu.tile_window[0]);
+    _runImg2Tile(g_fu.tile_stride[0], g_fu.tile_window[0], g_fu.tile_offset[0]);
 
   }
 
@@ -99,10 +105,11 @@
     let opt = ele.value;
 
     let opt_map = {
-      "rrti": { "src": "img/rrti.png",                        "tile_stride": [16,16], "tile_window": [32,32] },
-      "pm"  : { "src": "img/pill_mortal_map0.png",            "tile_stride": [8 ,8 ], "tile_window": [16,16] },
-      "oloz": { "src": "img/lunarsignals_oloz.png",           "tile_stride": [16,16], "tile_window": [32,32] },
-      "smb" : { "src": "img/adamatomic-surt-kenney_smb.png",  "tile_stride": [8 ,8 ], "tile_window": [16,16] }
+      "rrti":   { "src": "img/rrti.png",                        "tile_stride": [16,16], "tile_window": [32,32], "tile_offset":[0, 0]  },
+      "pm"  :   { "src": "img/pill_mortal_map0.png",            "tile_stride": [8 ,8 ], "tile_window": [16,16], "tile_offset":[0, 0]  },
+      "noloz":  { "src": "img/lunarsignals_noloz.png",          "tile_stride": [16,16], "tile_window": [32,32], "tile_offset":[0, 0]  },
+      //"oarpgo": { "src": "img/lunarsignals_oarpgo.png",         "tile_stride": [16,16], "tile_window": [48,48], "tile_offset":[16,16] },
+      "smb" :   { "src": "img/adamatomic-surt-kenney_smb.png",  "tile_stride": [8 ,8 ], "tile_window": [16,16], "tile_offset":[0, 0]  }
     };
 
     if (!(opt in opt_map)) { return; }
@@ -119,11 +126,11 @@
 
     let img = document.getElementById("ui_exemplarImage");
     //img.onload = (function(_src, _tile_stride, _win) { return function() {
-    img.onload = (function(x,y,z) {
+    img.onload = (function(x,y,z,w) {
       return function() {
-        hiddenExemplarOnLoad(x,y,z);
+        hiddenExemplarOnLoad(x,y,z,w);
       };
-    })(opt_map[opt].src, opt_map[opt].tile_stride[0], opt_map[opt].tile_window[0]);
+    })(opt_map[opt].src, opt_map[opt].tile_stride[0], opt_map[opt].tile_window[0], opt_map[opt].tile_offset[0]);
 
     img.src = opt_map[opt].src;
 
@@ -131,7 +138,7 @@
 
   function init() {
     g_fu.fileUpload = new LocalFileUpload("ui_fileButton", "ui_exemplarImage", imgUploaded);
-    _runImg2Tile(g_fu.tile_stride[0], g_fu.tile_window[0]);
+    _runImg2Tile(g_fu.tile_stride[0], g_fu.tile_window[0], g_fu.tile_offset[0]);
     pixi_init();
   }
 
@@ -148,20 +155,21 @@
 
   var g_supertile_data;
 
-  function _runImg2Tile(stride, st_size) {
+  function _runImg2Tile(stride, st_size, tile_offset) {
     stride = ( ((typeof stride)==="undefined") ? 16 : stride );
     st_size = ( ((typeof st_size)==="undefined") ? 32 : st_size);
+    tile_offset = ( ((typeof tile_offset)==="undefined") ? 0 : tile_offset);
+
     g_info.stride = [stride,stride];
     g_info.supertile_dim = [st_size, st_size];
+    g_info.tile_offset = [tile_offset, tile_offset];
     g_info.img = imgData("ui_exemplarImage");
-
-    console.log("runimg2tile:", g_info.img);
 
     // experimental
     flatten_img_data(g_info.img.data, 10);
 
-    console.log("colors now:", color_count(g_info.img.data));
-
+    // main call to img2tile calculation
+    //
     g_poms = img2tile_run(g_info);
     imgDataLoad( g_poms.tileset_png, "ui_tileset")
 
@@ -374,9 +382,12 @@
 
     <hr>
 
+    <!-- location of pixi windows -->
     <div id='ui_pixi_location'>
     </div>
 
+    <!-- hidden but preloaded so we have something to display on initial landing -->
+    <!-- loaded images will also go here so we have an image to grab the data from -->
     <div class='row'>
       <div class='six columns'> <img hidden onload='_init0();' id='ui_exemplarImage' style='pixelated' src='img/rrti.png'></img> </div>
       <div class='six columns'> <img hidden onload='_init1();' id='ui_tileset'></img> </div>
@@ -406,10 +417,11 @@
 
         <select name='img_option' id='ui_imgOption' onchange='imgOptionChange();'>
           <option value=''>--Predefined Exemplar Images--</option>
-          <option value='rrti'>River Runs Through It</option>
+          <option value='rrti'>Wozniak's Forest Micro</option>
           <option value='pm'>Pill Mortal</option>
           <option value='smb'>Shoggot's Maledictive Blit</option>
-          <option value='oloz'>Occult Lore of Zin</option>
+          <!-- <option value='oarpgo'>LUNARSIGNAL's Overhead Action RPG Overworld</option> -->
+          <option value='noloz'>LUNARSIGNAL's Not Zelda</option>
         </select>
 
       </div>
