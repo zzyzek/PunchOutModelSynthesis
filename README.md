@@ -27,8 +27,8 @@ Quick Start
 ---
 
 ```
-git clone https://zzyzek/PunchOutModelSynthesis
-cd PunchOutModelSynthesis/src ; make ; make ir
+git clone https://github.com/zzyzek/PunchOutModelSynthesis
+cd PunchOutModelSynthesis/src ; make
 cd ../runs/pillMortal
 ./run.sh  # run POMS to create a 128x128 pillMortal level
 ```
