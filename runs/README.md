@@ -6,7 +6,7 @@ Gallery
 
 | |
 |---|
-| [![0x72_2bmmt](0x72_2bmmt/data/2bmmv_128x128.png)](0x72_2bmmt) |
+| [![0x72_2bmmv](0x72_2bmmv/data/2bmmv_128x128.png)](0x72_2bmmv) |
 | [![adamatomic_1985](adamatomic_1985/data/1985_128x128.png)](adamatomic_1985) |
 | [![adamatomic_amarelo](adamatomic_amarelo/data/amarelo_128x128.png)](adamatomic_amarelo) |
 | [![adamatomic_jawbreaker](adamatomic_jawbreaker/data/jawbreaker_128x128.png)](adamatomic_jawbreaker) |
