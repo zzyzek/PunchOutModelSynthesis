@@ -22,6 +22,35 @@ The `html/` directory is the inteded target of where the compiled JavaScript sho
 go as well as the sample application, etc. but this is all highly volatile and
 subject to change.
 
+Adding Tilesets
+---
+
+This process is still clunky but here are the rough steps:
+
+* copy the POMS config JSON file to `html/data`
+  - *IMPORTANT* make sure to update the `.tileset.image` location to not be under a subdirectory
+    (for example, `.tileset.image = "pillMortal_tileset.png"`, *not* `.tileset.image = "data/pillMortal_tileset.png"`)
+* copy the tileset PNG ile to `html/data` and create a symlink to it in `html/img`
+* in `html/js/poms_default.js`, add the run template
+* in `html/index.html`, add the tileset option to the `ui_tileset` dropdown selection, using the same name key for the
+  value as it appears in the newly added entry in `html/js/poms_default.js` 
+* in `emcmp`, add a `--preload-file 'html/newtileset_poms.json@data/`
+
+After the above is done, transpile:
+
+```
+$ ./emcmp
+```
+
+To test, you can run locally:
+
+```
+$ cd html
+$ python3 -m http.server
+```
+
+And then point your browser to `http://localhost:8000`.
+
 Notes
 ---
 

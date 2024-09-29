@@ -32,6 +32,7 @@ em++ \
   --preload-file 'html/data/neondirt_poms.json@data/' \
   --preload-file 'html/data/2bmmv_poms.json@data/' \
   --preload-file 'html/data/1985_poms.json@data/' \
+  --preload-file 'html/data/minirogue_poms.json@data/' \
   --preload-file 'html/data/amarelo_poms.json@data/' \
   --preload-file 'html/data/kyst_poms.json@data/' \
   --preload-file 'html/data/mccaves_poms.json@data/' \

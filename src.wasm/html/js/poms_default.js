@@ -52,6 +52,27 @@ var g_poms_default = {
 
   // adam atomic
   //
+  "minirogue": {
+    "-C" : "data/minirogue_poms.json",
+    "-s": "48,48,1",
+    //"-q": "128,128,1",
+    "-q": "64,64,1",
+    "-b": "1",
+    "-B": "8:32",
+    "-J":"10000",
+    "-w": "1.5",
+    "-E": "-1.75",
+    "-1": "minirogue_tiled.json",
+    "-8": "minirogue_snapshot.json",
+    "-P": "min",
+    "-O viz_step": "50",
+    "-O patch-policy": "pending",
+    "-S": "1337",
+    "-V": "1"
+  },
+
+  // adam atomic
+  //
   "1985": {
     "-C" : "data/1985_poms.json",
     "-s": "48,48,1",
