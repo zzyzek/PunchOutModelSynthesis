@@ -23,6 +23,7 @@ Gallery
 | [![thkaspar_mt](thkaspar_mt/data/neonsnow_128x128.png)](thkaspar_mt) |
 | [![thkaspar_mt](thkaspar_mt/data/neondungeon_128x128.png)](thkaspar_mt) |
 | [![lunarsignals_oarpgo](lunarsignals_oarpgo/data/oarpgo_256x256_wUbW3x3.png)](lunarsignals_oarpgo) |
+| [![kingel-minirogue](kingel_minirogue/data/minirogue_128x128.png)](kingel_minirogue) |
 | [![brutal plum](brutal-plum/data/brutal-plum_screenshot.png)](brutal-plum) |
 
 
