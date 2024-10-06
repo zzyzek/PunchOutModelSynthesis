@@ -40,18 +40,25 @@ freq_taccl = loadfile("pm_freq.taccl")
 
 def outplot(nd_a, fn, title):
   im = plt.imshow(nd_a, cmap='viridis', interpolation='nearest', norm=colors.SymLogNorm(linthresh=1, vmin=nd_a.min(), vmax=nd_a.max(), base=10))
-  plt.xlabel("x")
-  plt.ylabel("y")
-  plt.title(title)
+
+  plt.rcParams.update({'font.size':20})
+
+  plt.xlabel("x", fontsize=24)
+  plt.ylabel("y", fontsize=24)
+  plt.title(title, fontdict = {'fontsize':24})
 
   plt.colorbar(im)
 
-  plt.savefig(fn)
+  plt.savefig(fn, bbox_inches='tight', dpi=300)
   plt.clf()
 
 
-outplot(simple_taccl, "pm_simple_taccl.png", TILESET_NAME + "\nSimple Tile Arc Consistent Correlation Length")
-outplot(freq_taccl, "pm_freq_taccl.png", TILESET_NAME + "\nFrequency Tile Arc Consistent Correlation Length")
+outplot(simple_taccl, "pm_simple_taccl.png", TILESET_NAME + "\nSimple TACCL")
+outplot(freq_taccl, "pm_freq_taccl.png", TILESET_NAME + "\nFrequency TACCL")
+
+outplot(simple_taccl, "pm_simple_taccl.svg", TILESET_NAME + "\nSimple TACCL")
+outplot(freq_taccl, "pm_freq_taccl.svg", TILESET_NAME + "\nFrequency TACCL")
+
 
 
 

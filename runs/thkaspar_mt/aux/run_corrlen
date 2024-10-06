@@ -3,57 +3,88 @@
 # LICENSE: CC0
 #
 
-n=64
-n2=`echo "$n / 2" | bc `
-nmm=`echo "$n - 1" | bc `
+op="$1"
 
-../../../bin/poms.ir \
-  -s $n,$n,1 \
-  -P $n2,$n2,0 \
-  -C ../data/neondungeon_poms.json > neondungeon_simple.taccl
+if [[ "$op" == "" || "$op" == "fm" || "$op" == "forestmicro" || "$op" == "forest" ]] ; then
+  op="forestmicro"
+fi
 
-../../../bin/poms.ir \
-  -F 1 \
-  -s $n,$n,1 \
-  -P $n2,$n2,0 \
-  -C ../data/neondungeon_poms.json > neondungeon_freq.taccl
+if [[ "$op" == "forestmicro" ]]; then
 
-exit
-##
+  n=38
+  n2=`echo "$n / 2" | bc `
 
-../../../bin/poms.ir \
-  -s $n,$n,1 \
-  -P 0,$n2,0 \
-  -C ../data/neondirt_poms.json > neondirt_simple_edge_0m.accl
+  echo "# running $op on n=$n, n/2=$n2, simple TACCL"
+
+  ../../../bin/poms.ir \
+    -s $n,$n,1 \
+    -P $n2,$n2,0 \
+    -C ../data/forestmicro_poms.json > forestmicro_simple.accl
+
+  echo "# running $op on n=$n, n/2=$n2, freq TACCL"
+
+  ../../../bin/poms.ir \
+     -F 1 \
+    -s $n,$n,1 \
+    -P $n2,$n2,0 \
+    -C ../data/forestmicro_poms.json > forestmicro_freq.accl
+
+elif [[ "$op" == "neondungeon" ]] ; then
+
+  n=64
+  n2=`echo "$n / 2" | bc `
+  nmm=`echo "$n - 1" | bc `
+
+  ../../../bin/poms.ir \
+    -s $n,$n,1 \
+    -P $n2,$n2,0 \
+    -C ../data/neondungeon_poms.json > neondungeon_simple.taccl
+
+  ../../../bin/poms.ir \
+    -F 1 \
+    -s $n,$n,1 \
+    -P $n2,$n2,0 \
+    -C ../data/neondungeon_poms.json > neondungeon_freq.taccl
+
+elif [[ "$op" == "neondirt" ]] ; then
+
+  n=64
+  n2=`echo "$n / 2" | bc `
+  nmm=`echo "$n - 1" | bc `
+
+  ../../../bin/poms.ir \
+    -s $n,$n,1 \
+    -P 0,$n2,0 \
+    -C ../data/neondirt_poms.json > neondirt_simple_edge_0m.accl
 
 
 
-../../../bin/poms.ir \
-  -s $n,$n,1 \
-  -P $n2,0,0 \
-  -C ../data/neondirt_poms.json > neondirt_simple_edge_m0.accl
+  ../../../bin/poms.ir \
+    -s $n,$n,1 \
+    -P $n2,0,0 \
+    -C ../data/neondirt_poms.json > neondirt_simple_edge_m0.accl
 
-../../../bin/poms.ir \
-  -s $n,$n,1 \
-  -P $n2,$nmm,0 \
-  -C ../data/neondirt_poms.json > neondirt_simple_edge_mn.accl
+  ../../../bin/poms.ir \
+    -s $n,$n,1 \
+    -P $n2,$nmm,0 \
+    -C ../data/neondirt_poms.json > neondirt_simple_edge_mn.accl
 
-../../../bin/poms.ir \
-  -s $n,$n,1 \
-  -P $nmm,$n2,0 \
-  -C ../data/neondirt_poms.json > neondirt_simple_edge_nm.accl
+  ../../../bin/poms.ir \
+    -s $n,$n,1 \
+    -P $nmm,$n2,0 \
+    -C ../data/neondirt_poms.json > neondirt_simple_edge_nm.accl
 
-../../../bin/poms.ir \
-  -s $n,$n,1 \
-  -P $n2,$n2,0 \
-  -C ../data/neondirt_poms.json > neondirt_simple_mid.accl
+  ../../../bin/poms.ir \
+    -s $n,$n,1 \
+    -P $n2,$n2,0 \
+    -C ../data/neondirt_poms.json > neondirt_simple_mid.accl
 
-../../../bin/poms.ir \
-  -F 1 \
-  -s $n,$n,1 \
-  -P $n2,$n2,0 \
-  -C ../data/neondirt_poms.json > neondirt_freq_mid.accl
+  ../../../bin/poms.ir \
+    -F 1 \
+    -s $n,$n,1 \
+    -P $n2,$n2,0 \
+    -C ../data/neondirt_poms.json > neondirt_freq_mid.accl
 
-  
- 
-#./show_cl
+    
+fi
+   

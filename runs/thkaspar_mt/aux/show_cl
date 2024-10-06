@@ -36,6 +36,9 @@ def loadfile(fn):
   nd_a = np.array(a)
   return nd_a
 
+fm_simple_accl = loadfile("forestmicro_simple.accl")
+fm_freq_accl = loadfile("forestmicro_freq.accl")
+
 simple_accl = loadfile("neondirt_simple.accl")
 freq_accl = loadfile("neondirt_freq.accl")
 
@@ -51,14 +54,25 @@ freq_dungeon_accl = loadfile("neondungeon_freq.taccl")
 def outplot(nd_a, fn, title):
   #im = plt.imshow(nd_a, cmap='magma', interpolation='nearest')
   im = plt.imshow(nd_a, cmap='viridis', interpolation='nearest', norm=colors.SymLogNorm(linthresh=1, vmin=nd_a.min(), vmax=nd_a.max(), base=10))
-  plt.xlabel("x")
-  plt.ylabel("y")
-  plt.title(title)
+
+  plt.rcParams.update({'font.size':20})
+
+  plt.xlabel("x", fontsize=24)
+  plt.ylabel("y", fontsize=24)
+  plt.title(title, fontdict={'fontsize':24})
 
   plt.colorbar(im)
 
-  plt.savefig(fn)
+  plt.savefig(fn, bbox_inches='tight', dpi=300)
   plt.clf()
+
+
+outplot(fm_simple_accl, "forestmicro_simple_accl.png", "Forest Micro\nSimple TACCL")
+outplot(fm_freq_accl, "forestmicro_freq_accl.png", "Forest Micro\nFrequency TACCL")
+
+outplot(fm_simple_accl, "forestmicro_simple_accl.svg", "Forest Micro\nSimple TACCL")
+outplot(fm_freq_accl, "forestmicro_freq_accl.svg", "Forest Micro\nFrequency TACCL")
+
 
 
 outplot(simple_accl, "neondirt_simple_accl.png", "Dirt Micro Tileset\nSimple Arc Consistent Correlation Length")
