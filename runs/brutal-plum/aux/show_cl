@@ -20,6 +20,7 @@ vox = []
 #titles = [ "z=0", "z=1", "z=2", "z=3", "z=4", "z=5", "z=6", "z=7" ]
 #titles = [ "dz=-3", "dz=-2", "dz=-1", "dz=0", "dz=1", "dz=2", "dz=3", "dz=4" ]
 
+plt.rcParams.update({'font.size':18})
 
 
 N = 32
@@ -70,23 +71,24 @@ for ax, title in zip(axs.flat, titles):
   #im = ax.imshow(vox[z], interpolation=None, cmap='magma', vmin=0)
   #im = ax.imshow(vox[y + Ys], interpolation='nearest', cmap='viridis', vmin=0)
   im = ax.imshow(vox[y + Ys], interpolation='nearest', cmap='viridis', origin='lower', norm=colors.SymLogNorm(linthresh=1, vmin=nd_a.min(), vmax=nd_a.max(), base=10))
-  ax.set_title(title)
-  ax.set_xlabel('x')
-  ax.set_ylabel('z')
+
+  ax.set_title(title, fontdict = {'fontsize':22})
+  ax.set_xlabel('x', fontdict = {'fontsize':22})
+  ax.set_ylabel('z', fontdict = {'fontsize':22})
   y+=1
 
   ims.append(im)
 plt.tight_layout()
 
-fig.suptitle("Brutal Plum Tileset\nFrequency Tile Arc Consistent Correlation Length")
+fig.suptitle("Brutal Plum\nFrequency TACCL", fontsize=24)
 
-print(ims)
-
-fig.subplots_adjust(right=0.8)
+fig.subplots_adjust(right=0.8, top=0.90)
 cbar_ax = fig.add_axes([0.85,0.15,0.05,0.7])
 fig.colorbar(ims[4], cax=cbar_ax)
 
+plt.rcParams.update({'font.size':24})
+plt.savefig("brutal-plum_freq_taccl.svg", bbox_inches='tight', dpi=300)
 
-plt.show()
+#plt.show()
 
 
