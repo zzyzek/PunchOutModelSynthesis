@@ -75,6 +75,8 @@ for ax, title in zip(axs.flat, titles):
   ax.set_title(title, fontdict = {'fontsize':22})
   ax.set_xlabel('x', fontdict = {'fontsize':22})
   ax.set_ylabel('z', fontdict = {'fontsize':22})
+  #ax.set_xlabel('x')
+  #ax.set_ylabel('z')
   y+=1
 
   ims.append(im)
@@ -82,11 +84,11 @@ plt.tight_layout()
 
 fig.suptitle("Brutal Plum\nFrequency TACCL", fontsize=24)
 
-fig.subplots_adjust(right=0.8, top=0.90)
+fig.subplots_adjust(right=0.8, top=0.95)
 cbar_ax = fig.add_axes([0.85,0.15,0.05,0.7])
 fig.colorbar(ims[4], cax=cbar_ax)
 
-plt.rcParams.update({'font.size':24})
+#plt.rcParams.update({'font.size':24})
 plt.savefig("brutal-plum_freq_taccl.svg", bbox_inches='tight', dpi=300)
 
 #plt.show()
