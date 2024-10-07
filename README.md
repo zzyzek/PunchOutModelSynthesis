@@ -3,8 +3,6 @@ Punch Out Model Synthesis
 
 **THIS IS RESEARCH QUALITY CODE AND SUBJECT TO CHANGE**
 
-![Pill Mortal Example Run](doc/vid/pm.mp4)
-
 Introduction
 ---
 
