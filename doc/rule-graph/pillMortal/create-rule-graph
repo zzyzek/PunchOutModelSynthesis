@@ -6,6 +6,10 @@
 import re,os,sys,json
 import random
 
+LAYOUT_OPT = "fdp"
+if len(sys.argv) > 1:
+  LAYOUT_OPT = sys.argv[1]
+
 POMS_FN = "./data/pillMortal_poms.json"
 TILEMAP_FN = "./data/pillMortal_tilemap.json"
 
@@ -73,7 +77,8 @@ for tile_idx in range(len(poms_json["name"])):
 
 
   #pos = "pos=\"" + str(f*float(tile_idx)/float(len(poms_json["name"]))) + ",0\""
-  pos = "pos=\"" + str(x) + "," + str(y) + "!\""
+  #pos = "pos=\"" + str(x) + "," + str(y) + "!\""
+  pos = "pos=\"" + str(x) + "," + str(f-y) + "!\""
 
   graph_txt.append(gv_node(name, "img/" + name + ".png", pos ))
 
