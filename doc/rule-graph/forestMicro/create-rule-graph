@@ -6,8 +6,13 @@
 import re,os,sys,json
 import random
 
-POMS_FN = "./data/rrti_poms.json"
-TILEMAP_FN = "./data/rrti_tilemap.json"
+LAYOUT_OPT = "fdp"
+
+if len(sys.argv) > 1:
+  LAYOUT_OPT = sys.argv[1]
+
+POMS_FN = "./data/forestmicro_poms.json"
+TILEMAP_FN = "./data/forestmicro_tilemap.json"
 
 NODE_TEMPLATE = """##NAME## [fontsize=1 margin=0 shape=none ##POS## label=<
       <TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="0">
@@ -74,6 +79,10 @@ for tile_idx in range(len(poms_json["name"])):
 
   #pos = "pos=\"" + str(f*float(tile_idx)/float(len(poms_json["name"]))) + ",0\""
   pos = "pos=\"" + str(x) + "," + str(y) + "\""
+
+  if (LAYOUT_OPT == "grid"):
+    pos = "pos=\"" + str(x) + "," + str(f - y) + "!\""
+
 
   graph_txt.append(gv_node(name, "img/" + name + ".png", pos ))
 

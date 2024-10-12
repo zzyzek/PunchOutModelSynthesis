@@ -1,0 +1,18 @@
+#!/bin/bash
+#
+# LICENSE: CC0
+#
+
+
+tfn=`mktemp`
+./create-rule-graph grid  grid > $tfn.dot
+dot -Kfdp -n -Tsvg -o $tfn.svg $tfn.dot
+inkscape -o $tfn.eps $tfn.svg
+./post-process-svg $tfn.svg > $tfn.svg1
+mv $tfn.svg1 forestmicro_rule_grid.svg
+inkscape -w 4096 -h 4096 forestmicro_rule_grid.svg -o forestmicro_rule_grid.png
+rm -f $tfn.dot $tfn.svg $tfn.eps $tfn.svg1
+
+echo "forestmicro_rule_grid.svg"
+echo "forestmicro_rule_grid.png"
+

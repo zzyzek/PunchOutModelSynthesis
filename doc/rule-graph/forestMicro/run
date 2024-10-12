@@ -5,14 +5,14 @@
 
 
 tfn=`mktemp`
-./create-rule-graph  > $tfn.dot
+./create-rule-graph > $tfn.dot
 sfdp -T svg $tfn.dot > $tfn.svg
 inkscape -o $tfn.eps $tfn.svg
 ./post-process-svg $tfn.svg > $tfn.svg1
-mv $tfn.svg1 rrti_rule.svg
-inkscape -w 4096 -h 4096 rrti_rule.svg -o rrti_rule.png
+mv $tfn.svg1 forestmicro_rule.svg
+inkscape -w 4096 -h 4096 forestmicro_rule.svg -o forestmicro_rule.png
 rm -f $tfn.dot $tfn.svg $tfn.eps $tfn.svg1
 
-echo "rrti_rule.svg"
-echo "rrti_rule.png"
+echo "forestmicro_rule.svg"
+echo "forestmicro_rule.png"
 
