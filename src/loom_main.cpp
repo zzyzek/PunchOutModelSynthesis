@@ -2562,27 +2562,12 @@ int loom_inventory( POMS &poms ) {
 
               n_tile = poms.cellSize(0, cell);
               for (tile_idx=0; tile_idx < n_tile; tile_idx++) {
-
                 tile = poms.cellTile(0, cell, tile_idx);
-
                 for (idir=0; idir<6; idir++) {
                   sup_vec[ (6*tile) + idir ] = poms.tileSupport(0, idir, cell, tile);
-
-                  //komihash_stream_update(&kh_ctx, &sup, sizeof(uint32_t));
                 }
               }
               komihash_stream_update( &kh_ctx, &(sup_vec[0]), sizeof(uint32_t)*sup_vec.size() );
-
-              //DEBUG
-              /*
-              printf("  sup_vec[%i,%i,%i]:", (int)x, (int)y, (int)z);
-              for (tile=0; tile<poms.m_tile_count; tile++) {
-                for (idir=0; idir<6; idir++) {
-                  if (sup_vec[ (6*tile) + idir ] > 0) { printf(" {t%i:%i %i}", (int)tile, (int)idir, (int)sup_vec[(6*tile)+idir]); }
-                }
-              }
-              printf("\n");
-              */
 
             }
           }
@@ -2602,6 +2587,69 @@ int loom_inventory( POMS &poms ) {
   }
 
   printf("\n");
+
+  return 0;
+}
+
+int loom_find_trap( POMS &poms, int32_t sb[6], int32_t tb[6] ) {
+  int32_t ob[6], ib[6], xyz;
+  int32_t x,y,z;
+  int64_t cell;
+
+  printf("\n\n---- find trap ----\n\n");
+
+  memset( &(poms.m_cell_pin[0]), 1, sizeof(int8_t)*poms.m_cell_pin.size() );
+
+  for (xyz=0; xyz<3; xyz++) {
+    ob[2*xyz+0] = ((sb[2*xyz+0] == 0) ? 0 : (sb[2*xyz]+1));
+    ob[2*xyz+1] = ((sb[2*xyz+1] == poms.m_size[xyz]) ? (poms.m_size[xyz]) : (sb[2*xyz+1]-1));
+
+    ib[2*xyz+0] = ((tb[2*xyz+0] == 0) ? 0 : (tb[2*xyz]+1));
+    ib[2*xyz+1] = ((tb[2*xyz+1] == poms.m_size[xyz]) ? (poms.m_size[xyz]) : (tb[2*xyz+1]-1));
+  }
+
+  printf("  superblock{%i:%i, %i:%i, %i:%i}, trapblock{%i:%i, %i:%i, %i:%i}\n",
+      (int)sb[0], (int)sb[1],
+      (int)sb[2], (int)sb[3],
+      (int)sb[4], (int)sb[5],
+
+      (int)tb[0], (int)tb[1],
+      (int)tb[2], (int)tb[3],
+      (int)tb[4], (int)tb[5]);
+
+  printf("  ob{%i:%i, %i:%i, %i:%i}, ib{%i:%i, %i:%i, %i:%i}\n",
+      (int)ob[0], (int)ob[1],
+      (int)ob[2], (int)ob[3],
+      (int)ob[4], (int)ob[5],
+
+      (int)ib[0], (int)ib[1],
+      (int)ib[2], (int)ib[3],
+      (int)ib[4], (int)ib[5]);
+
+  for (z=ob[4]; z<ob[5]; z++) {
+    for (y=ob[2]; y<ob[3]; y++) {
+      for (x = ob[0]; x < ob[1]; x++) {
+        cell = poms.xyz2cell(x,y,z);
+        if (cell < 0) { continue; }
+        poms.m_cell_pin[cell] = 0;
+      }
+    }
+  }
+
+  for (z=ib[4]; z<ib[5]; z++) {
+    for (y=ib[2]; y<ib[3]; y++) {
+      for (x = ib[0]; x < ib[1]; x++) {
+        cell = poms.xyz2cell(x,y,z);
+        if (cell < 0) { continue; }
+        poms.m_cell_pin[cell] = 1;
+      }
+    }
+  }
+
+
+  printf("----\n");
+  poms.printDebugPin();
+  printf("----\n");
 
   return 0;
 }
@@ -2676,7 +2724,8 @@ int loom_main(int argc, char **argv) {
   opt.retry_max = 10;
   opt.tiled_fmt_type = 0;
 
-  POMS poms;
+  POMS poms,
+       superblock_poms;
 
   //----
 
@@ -3347,6 +3396,24 @@ int loom_main(int argc, char **argv) {
   //   expand to fill whole quilt
   //    
 
+  int32_t bsize = 8,
+          superblock_bb[6],
+          trap_bb[6];
+
+  superblock_bb[0] = 0;
+  superblock_bb[1] = bsize*3;
+  superblock_bb[2] = 0;
+  superblock_bb[3] = bsize*3;
+  superblock_bb[4] = 0;
+  superblock_bb[5] = 1;
+
+  trap_bb[0] = bsize;
+  trap_bb[1] = bsize + bsize;
+  trap_bb[2] = bsize;
+  trap_bb[3] = bsize + bsize;
+  trap_bb[4] = 0;
+  trap_bb[5] = 1;
+
   r = poms.setupQuiltPatch();
   if (r<0) {
     printf("setup failure...\n");
@@ -3362,7 +3429,15 @@ int loom_main(int argc, char **argv) {
   r = poms.BMSBegin();
   if (r<0) { return err_and_return("BMSBegin error"); }
 
+  superblock_poms.m_size[0] = superblock_bb[1] - superblock_bb[0];
+  superblock_poms.m_size[1] = superblock_bb[3] - superblock_bb[2];
+  superblock_poms.m_size[2] = superblock_bb[5] - superblock_bb[4];
+
+  superblock_poms.loadPOMS(poms);
+
   loom_inventory(poms);
+
+  loom_find_trap(poms, superblock_bb, trap_bb);
 
   printf("CP!!\n");
 
