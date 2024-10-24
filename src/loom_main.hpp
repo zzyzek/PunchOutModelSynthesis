@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef MAIN_POMS_HPP
-#define MAIN_POMS_HPP
+#ifndef LOOM_POMS_MAIN_HPP
+#define LOOM_POMS_MAIN_HPP
 
 #include <stdio.h>
 #include <stdlib.h>

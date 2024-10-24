@@ -11,7 +11,7 @@
 #define FNL_IMPL
 #include "FastNoiseLite.h"
 
-#include "loom_poms.hpp"
+#include "loom_main.hpp"
 
 #include "komihash.h"
 
@@ -1143,8 +1143,6 @@ int _patch_choice_wf_cone0p( g_ctx_t &ctx,
 
   }
 
-
-  //if (_sum > poms->m_zero) {
   if (min_u > -poms->m_zero) {
     for (xyz=0; xyz<3; xyz++) {
       d = poms->noisePowerLaw(0.125, -2.0);
@@ -1249,8 +1247,6 @@ int _patch_choice_wf_cone0n( g_ctx_t &ctx,
 
   }
 
-
-  //if (_sum > poms->m_zero) {
   if (cur_max > -poms->m_zero) {
     for (xyz=0; xyz<3; xyz++) {
       block_start[xyz] -= _ds[xyz];
@@ -1355,8 +1351,6 @@ int _patch_choice_wf_cone1n( g_ctx_t &ctx,
 
   }
 
-
-  //if (_sum > poms->m_zero) {
   if (cur_max > -poms->m_zero) {
     for (xyz=0; xyz<3; xyz++) {
       block_start[xyz] -= _ds[xyz];
@@ -1510,8 +1504,6 @@ int _patch_choice_wf_xyz2(g_ctx_t &ctx,
     dy *= beta;
     dz *= beta;
 
-    //u = sqrt( (dx*dx) + (dy*dy) + (dz*dz) );
-
     u = fabs(pow(pow(dx,alpha) + pow(dy,alpha) + pow(dz,alpha), 1.0/alpha));
 
     if ((cur_min < 0.0) ||
@@ -1520,19 +1512,6 @@ int _patch_choice_wf_xyz2(g_ctx_t &ctx,
       block_start[0] = v[0];
       block_start[1] = v[1];
       block_start[2] = v[2];
-
-      //DEBUG
-      //printf("# wf_xy: [%i,%i,%i] v[%i,%i,%i] dxyz(%f,%f,%f) u:%f\n",
-      /*
-      printf("# wf_xyz2: u:%f, v[%i,%i,%i], dxyz(%f,%f,%f), start[%i,%i,%i]\n",
-          u,
-          v[0], v[1], v[2],
-          dx,dy,dz,
-          block_start[0],
-          block_start[1],
-          block_start[2]);
-          */
-
     }
 
   }
@@ -1696,16 +1675,6 @@ int _patch_choice_wf_cube(g_ctx_t &ctx,
       block_start[0] = v[0];
       block_start[1] = v[1];
       block_start[2] = v[2];
-
-      //DEBUG
-      printf("# wf_cube: u:%f, v[%i,%i,%i], dxyz(%f,%f,%f), start[%i,%i,%i]\n",
-          u,
-          v[0], v[1], v[2],
-          dx,dy,dz,
-          block_start[0],
-          block_start[1],
-          block_start[2]);
-
     }
 
   }
@@ -1789,17 +1758,6 @@ int _patch_choice_wf_xy(g_ctx_t &ctx,
       block_start[0] = v[0];
       block_start[1] = v[1];
       block_start[2] = v[2];
-
-      //DEBUG
-      //printf("# wf_xy: [%i,%i,%i] v[%i,%i,%i] dxyz(%f,%f,%f) u:%f\n",
-      printf("# wf_xy: u:%f, v[%i,%i,%i], dxyz(%f,%f,%f), start[%i,%i,%i]\n",
-          u,
-          v[0], v[1], v[2],
-          dx,dy,dz,
-          block_start[0],
-          block_start[1],
-          block_start[2]);
-
     }
 
   }
@@ -1864,8 +1822,6 @@ int _patch_choice_wf_xy_n(g_ctx_t &ctx,
     dy = ((double)v[1]) - cy;
     dz = ((double)v[2]) - cz;
 
-    //u = sqrt( (dx*dx) + (dy*dy) + (dz*dz) );
-
     u = fabs(dx + dy + dz);
 
     if ((cur_min < 0.0) ||
@@ -1874,19 +1830,6 @@ int _patch_choice_wf_xy_n(g_ctx_t &ctx,
       block_start[0] = v[0];
       block_start[1] = v[1];
       block_start[2] = v[2];
-
-      //DEBUG
-      //printf("# wf_xy: [%i,%i,%i] v[%i,%i,%i] dxyz(%f,%f,%f) u:%f\n",
-      /*
-      printf("# wf_xy_n: u:%f, v[%i,%i,%i], dxyz(%f,%f,%f), start[%i,%i,%i]\n",
-          u,
-          v[0], v[1], v[2],
-          dx,dy,dz,
-          block_start[0],
-          block_start[1],
-          block_start[2]);
-          */
-
     }
 
   }
@@ -2521,12 +2464,6 @@ double custom_G(POMS *poms, int64_t cell, int32_t tile) {
   double _min = 1/64.0,
          _max = 1.0-(1/64.0);
 
-
-  //_min = 1;
-  //_max = 200.0;
-
-  //M = 1000.0;
-
   tile_group = poms->m_tile_group[tile];
 
   if (g_ctx.noise_type[tile_group] == NOISE_TYPE_NONE) {
@@ -2536,24 +2473,9 @@ double custom_G(POMS *poms, int64_t cell, int32_t tile) {
   _min = g_ctx.noise_min[tile_group];
   _max = g_ctx.noise_max[tile_group];
 
-  //M = g_ctx.noise_max[tile_group];
-
-
-  //if (tile != 0) { return poms->G(tile); }
-  //_max = poms->G(0);
-
   poms->cell2vec(xyz, cell, poms->m_quilt_size);
   v = fnlGetNoise3D(&(g_ctx.noise[tile_group]), xyz[0], xyz[1], xyz[2]);
   R = ((_max - _min)*(v+1.0)/2.0) + _min;
-
-  //printf("#### tile:%i, xyz[%i,%i,%i]{%i} v:%f\n",
-  //    (int)tile, (int)xyz[0], (int)xyz[1], (int)xyz[2],
-  //    (int)cell, v);
-
-
-  //if (tile == 0) { return poms->G(0) * R; }
-
-  //if (tile==0) {
 
   switch (g_ctx.noise_type[tile_group]) {
     case NOISE_TYPE_NONE:
@@ -2569,68 +2491,128 @@ double custom_G(POMS *poms, int64_t cell, int32_t tile) {
       return ((v > 0) ? (poms->G(tile)*R) : (poms->G(tile)*g_ctx.noise_threshold[tile_group]));
       break;
     default:
-      //return poms->G(tile);
       break;
   }
 
-  /*
-  if (g_ctx.noise_type[tile_group] == NOISE_TYPE_LINEAR) {
-    return poms->G(tile)*R;
-  }
-
-  else if (g_ctx.noise_type[tile_group] == NOISE_TYPE_THRESHOLD) {
-    if (v < _min) { return poms->G(tile)*_max; }
-    return poms->G(tile)*_min;
-  }
-
-  else if (g_ctx.noise_type[tile_group] == NOISE_TYPE_TIERED) {
-    if (v < 0) { return poms->G(tile)*R; }
-    //return poms->G(tile)*M;
-    return poms->G(tile)*_max;
-  }
-  */
-
   return poms->G(tile);
-  //return -1;
 }
 
 //---
 //---
 
-/*
-double window_alpha(_opt_t &opt) {
-  int32_t i, idx, fail_count;
-  double R=1.0;
 
-  fail_count = 0;
-  for (i=0; i<opt.window_fail_n; i++) {
-    idx = (opt.window_fail_s + i) % opt.window_fail.size();
+int loom_inventory( POMS &poms ) {
+  komihash_stream_t kh_ctx;
 
-    if (opt.window_fail[idx] > 0) { fail_count++; }
+  std::vector< uint32_t > sup_vec;
+  uint64_t kh_seed = 0xded;
+
+  int32_t hbs[3],
+          bs[3];
+  int32_t sx,sy,sz,
+          dx,dy,dz,
+          x,y,z;
+  int64_t cell;
+
+  int32_t tile_idx, n_tile, idir, tile;
+
+  uint32_t sup=0;
+
+  uint64_t _hash=0;
+
+  hbs[0] = 4;
+  hbs[1] = 4;
+  hbs[2] = 1;
+
+  bs[0] = 8;
+  bs[1] = 8;
+  bs[2] = 1;
+
+
+  printf("loom_inventory: m_size(%i,%i,%i), half_block_size:%i,%i,%i, block_size:%i,%i,%i\n",
+      (int)poms.m_size[0], (int)poms.m_size[1], (int)poms.m_size[2],
+      (int)hbs[0], (int)hbs[1], (int)hbs[2],
+      (int)bs[0], (int)bs[1], (int)bs[2]);
+
+  sup_vec.resize( 6*poms.m_tile_count );
+
+  for (sz=0; sz<poms.m_size[2]; sz+=hbs[2]) {
+
+    printf("\n");
+
+    for (sy=0; sy<poms.m_size[1]; sy+=hbs[1]) {
+
+      printf("\n");
+
+      for (sx=0; sx<poms.m_size[0]; sx+=hbs[0]) {
+
+        memset( &(sup_vec[0]), 0, sizeof(uint32_t)*sup_vec.size() );
+
+        komihash_stream_init(&kh_ctx, kh_seed);
+        for (dz=0; dz<bs[2]; dz++) {
+          for (dy=0; dy<bs[1]; dy++) {
+            for (dx=0; dx<bs[0]; dx++) {
+
+              x = sx + dx;
+              y = sy + dy;
+              z = sz + dz;
+
+              cell = poms.xyz2cell(x,y,z);
+              if (cell < 0) { continue; }
+
+              n_tile = poms.cellSize(0, cell);
+              for (tile_idx=0; tile_idx < n_tile; tile_idx++) {
+
+                tile = poms.cellTile(0, cell, tile_idx);
+
+                for (idir=0; idir<6; idir++) {
+                  sup_vec[ (6*tile) + idir ] = poms.tileSupport(0, idir, cell, tile);
+
+                  //komihash_stream_update(&kh_ctx, &sup, sizeof(uint32_t));
+                }
+              }
+              komihash_stream_update( &kh_ctx, &(sup_vec[0]), sizeof(uint32_t)*sup_vec.size() );
+
+              //DEBUG
+              /*
+              printf("  sup_vec[%i,%i,%i]:", (int)x, (int)y, (int)z);
+              for (tile=0; tile<poms.m_tile_count; tile++) {
+                for (idir=0; idir<6; idir++) {
+                  if (sup_vec[ (6*tile) + idir ] > 0) { printf(" {t%i:%i %i}", (int)tile, (int)idir, (int)sup_vec[(6*tile)+idir]); }
+                }
+              }
+              printf("\n");
+              */
+
+            }
+          }
+        }
+
+        //komihash_stream_init(&kh_ctx, kh_seed);
+        //komihash_stream_update(&kh_ctx, &(sup_vec[0]), sizeof(uint32_t)*sup_vec.size());
+        _hash = komihash_stream_final(&kh_ctx);
+
+        printf(" %04x", (unsigned int)(_hash & 0xffff));
+        //printf(" [%i,%i,%i]: %016llx\n",
+        //    (int)sx, (int)sy, (int)sz,
+        //    (long long unsigned int)_hash);
+
+      }
+    }
   }
 
-  if (fail_count < opt.window_fail_threshold[0]) {
-    return 0.0;
-  }
+  printf("\n");
 
-  if (fail_count >= opt.window_fail_threshold[1]) {
-    return 1.0;
-  }
-
-  fail_count -= opt.window_fail_threshold[0];
-
-  R = (double)(opt.window_fail_threshold[1] - opt.window_fail_threshold[0]);
-
-  return ((double)fail_count) / R;
+  return 0;
 }
-*/
+
 
 
 //---
 //---
 
 
-int poms_main(int argc, char **argv) {
+int loom_main(int argc, char **argv) {
   int i, ii,
       r, _ret, ret, _r,
       sep = ',',
@@ -3133,16 +3115,6 @@ int poms_main(int argc, char **argv) {
     poms.m_entropy_rand_exponent = opt.rand_exponent;
   }
 
-  /*
-  poms.m_block_size[0] = ((opt.block_size[0] > 0) ? opt.block_size[0] : -1);
-  poms.m_block_size[1] = ((opt.block_size[1] > 0) ? opt.block_size[1] : -1);
-  poms.m_block_size[2] = ((opt.block_size[2] > 0) ? opt.block_size[2] : -1);
-
-  poms.m_soften_size[0] = ((opt.soften_size[0] > 0) ? opt.soften_size[0] : -1);
-  poms.m_soften_size[1] = ((opt.soften_size[1] > 0) ? opt.soften_size[1] : -1);
-  poms.m_soften_size[2] = ((opt.soften_size[2] > 0) ? opt.soften_size[2] : -1);
-  */
-
   //----
   // better default?
   //
@@ -3150,10 +3122,6 @@ int poms_main(int argc, char **argv) {
   poms.m_block_size[0] = ((opt.block_size[0] > 0) ? opt.block_size[0] : 1);
   poms.m_block_size[1] = ((opt.block_size[1] > 0) ? opt.block_size[1] : 1);
   poms.m_block_size[2] = ((opt.block_size[2] > 0) ? opt.block_size[2] : 1);
-
-  //poms.m_soften_size[0] = ((opt.soften_size[0] > 0) ? opt.soften_size[0] : 1);
-  //poms.m_soften_size[1] = ((opt.soften_size[1] > 0) ? opt.soften_size[1] : 1);
-  //poms.m_soften_size[2] = ((opt.soften_size[2] > 0) ? opt.soften_size[2] : 1);
 
   opt.soften_window.soften_min[0] = ((opt.soften_window.soften_min[0] > 0) ? opt.soften_window.soften_min[0] : 1);
   opt.soften_window.soften_min[1] = ((opt.soften_window.soften_min[1] > 0) ? opt.soften_window.soften_min[1] : 1);
@@ -3172,14 +3140,6 @@ int poms_main(int argc, char **argv) {
   poms.m_soften_size[0] = opt.soften_window.soften_min[0];
   poms.m_soften_size[1] = opt.soften_window.soften_min[1];
   poms.m_soften_size[2] = opt.soften_window.soften_min[2];
-
-  /*
-  opt.window_fail.resize(128);
-  opt.window_fail_s = 0;
-  opt.window_fail_n = 0;
-  opt.window_fail_threshold[0] = 10;
-  opt.window_fail_threshold[1] = 128-10;
-  */
 
   //
   //----
@@ -3294,24 +3254,6 @@ int poms_main(int argc, char **argv) {
   if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
     printf("# PHASE_START\n");
     poms.printDebug();
-
-    /*
-    poms.printDebugAC4();
-
-    r = poms.sanityArcConsistency();
-    if (r<0) {
-      printf("# sanityAC failed: got:%i, cell:%i, tile:%i(%s), dir:%i(%s), type:%i\n",
-          r,
-          (int)poms.m_conflict_cell,
-          (int)poms.m_conflict_tile, poms.m_tile_name[ poms.m_conflict_tile ].c_str(),
-          (int)poms.m_conflict_idir, poms.m_dir_desc[ poms.m_conflict_idir ].c_str(),
-          (int)poms.m_conflict_type);
-    }
-    else {
-      printf("# sanityAC: %i\n", r);
-    }
-    */
-
   }
 
   poms.m_tile_choice_policy = POMS_TILE_CHOICE_PROB;
@@ -3330,7 +3272,6 @@ int poms_main(int argc, char **argv) {
   //     |_|                      |___/ 
   //------------------------------------
 
-
   //---
   //---
   //---
@@ -3339,7 +3280,6 @@ int poms_main(int argc, char **argv) {
   g_ctx.m_iter=-1;
   g_ctx.m_alpha = 2;
   g_ctx.m_beta = 1.0;
-
 
   if (g_ctx.tiled_snapshot_fn.size() > 0) {
     g_ctx.T.tilesets.resize(1);
@@ -3387,19 +3327,58 @@ int poms_main(int argc, char **argv) {
     poms.m_distance_p[2] = (double)poms.m_size[2]/2.0;
   }
 
-  for (quilt_step=0; quilt_step < max_quilt_step; quilt_step++) {
+  //-----
+  //-----
+  //-----
+  //-----
 
-    //printf("## exporting quilt...\n");
-    //_debug_export_quilt(poms);
+  // current work in progress...
+  //
+
+  // Inventory
+  //   go at half block stride and create hashes of all blocks found
+  // Cursed
+  //   find which blocks are cursed by taking a 3x3 block region around
+  //   every half block, filling in the surrounding 8 blocks first while
+  //   keeping the center block fixed, then trying the centerblock.
+  // Shrink & Expand
+  //   (unknown) shrink region to only use cursed blocks
+  //   Start solving
+  //   expand to fill whole quilt
+  //    
+
+  r = poms.setupQuiltPatch();
+  if (r<0) {
+    printf("setup failure...\n");
+    exit(-1);
+  }
+
+  //DEBUG
+  poms.printDebug();
+
+  r = poms.BMSInit();
+  if (r!=0) { return err_and_return("BMSInit error"); }
+
+  r = poms.BMSBegin();
+  if (r<0) { return err_and_return("BMSBegin error"); }
+
+  loom_inventory(poms);
+
+  printf("CP!!\n");
+
+  exit(-1);
+  //exit(-1);
+
+  //-----
+  //-----
+  //-----
+  //-----
+
+  for (quilt_step=0; quilt_step < max_quilt_step; quilt_step++) {
 
     g_ctx.m_iter++;
 
     opt.soften_window.choose_soften_size( poms.m_soften_size );
-
-    //poms.m_soften_size[0] = opt.soften_window.soften_size[0];
-    //poms.m_soften_size[1] = opt.soften_window.soften_size[1];
-    //poms.m_soften_size[2] = opt.soften_window.soften_size[2];
-
 
     // TODO:
     // many(most?) of these patch strategies are broken, need to go through
@@ -3484,7 +3463,6 @@ int poms_main(int argc, char **argv) {
       printf("# distance_modifier_opt: %i\n", poms.m_distance_modifier_opt);
 
       printf("\n\n");
-      //fflush(stdout);
     }
 
     // Take POMS snapshot so we can debug this block
@@ -3515,11 +3493,8 @@ int poms_main(int argc, char **argv) {
             poms.m_patch_region[1][0], poms.m_patch_region[1][1],
             poms.m_patch_region[2][0], poms.m_patch_region[2][1],
             (int)fail_counter, (int)fail_counter_reset);
-        //printf("# ...eroding quilt region (erode_p:%f {%f,%f})\n", erode_p, erode_p_s, erode_p_s);
       }
 
-      //_erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])), erode_p );
-      //_erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])), 0.5);
       _remove_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])), 1 );
 
       if (fail_counter >= fail_counter_reset) {
@@ -3569,15 +3544,6 @@ int poms_main(int argc, char **argv) {
       continue;
     }
 
-    //DEBUG
-    //printf("after setupQuiltPatch:\n");
-    //poms.printDebug();
-    //DEBUG
-
-    //printf("# quilt__step: %i, debug_spot_checks.0 (after setupquiltpatch, before bmsinit):\n", (int)quilt_step);
-    //poms.printDebugSpotCheck();
-
-
     r = poms.BMSInit();
     if (r!=0) { return err_and_return("BMSInit error"); }
 
@@ -3590,9 +3556,6 @@ int poms_main(int argc, char **argv) {
       }
     }
 
-
-    //printf("# quilt__step: %i, debug_spot_checks.1 (after setupquiltpatch, after bmsinit):\n", (int)quilt_step);
-    //poms.printDebugSpotCheck();
 
     n_it = ( (n_it <= 0) ? poms.blockSequenceCount() : n_it );
     max_bms_step = poms.m_block_size[0]*poms.m_block_size[1]*poms.m_block_size[2];
@@ -3644,8 +3607,6 @@ int poms_main(int argc, char **argv) {
           }
 
           if (opt.tiled_slideshow_dir.size() > 0) {
-            //tiled_slideshow(poms, opt, it*max_bms_step + bms_step);
-            //tiled_slideshow(g_ctx, opt, it*max_bms_step + bms_step);
             tiled_slideshow(g_ctx, opt, g_ctx.m_slideshow_id);
             g_ctx.m_slideshow_id++;
           }
@@ -3686,8 +3647,6 @@ int poms_main(int argc, char **argv) {
         }
 
         if (opt.tiled_slideshow_dir.size() > 0) {
-          //tiled_slideshow(poms, opt, it*max_bms_step + max_bms_step - 1);
-          //tiled_slideshow(g_ctx, opt, it*max_bms_step + max_bms_step - 1);
           tiled_slideshow(g_ctx, opt, g_ctx.m_slideshow_id);
           g_ctx.m_slideshow_id++;
         }
@@ -3735,8 +3694,6 @@ int poms_main(int argc, char **argv) {
 
     if (poms.m_verbose >= POMS_VERBOSE_RUN) {
 
-      //poms.printDebugQuiltGrid(print_order);
-
       if (ret==-3) {
         printf("## SANITY? cell:%i, tile:%i, idir:%i, type: %i\n",
             (int)poms.m_conflict_cell, (int)poms.m_conflict_tile, (int)poms.m_conflict_idir,
@@ -3765,8 +3722,6 @@ int poms_main(int argc, char **argv) {
       if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
         poms.printDebugGrid();
       }
-
-      //poms.printDebugGrid(print_order);
 
       if (poms.m_verbose >= POMS_VERBOSE_STEP) {
         printf("## before save quilt: arc sanity: %i, ac4 consistency: %i, sanity quilt: %i\n",
@@ -3953,7 +3908,7 @@ int poms_main(int argc, char **argv) {
 
 #ifndef CUSTOM_MAIN
 int main(int argc, char **argv) {
-  return poms_main(argc, argv);
+  return loom_main(argc, argv);
 }
 #endif
 
