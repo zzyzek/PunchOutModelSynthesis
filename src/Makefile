@@ -16,7 +16,7 @@ DEBUGLIBDIR := .debuglib
 BINDIR := ../bin
 SRC_DIR := "./"
 
-BIN_CPP := 'test_poms|main_poms|le_poms|mcmc_poms|lace_poms|ir_poms|investigate'
+BIN_CPP := 'test_poms|main_poms|le_poms|mcmc_poms|lace_poms|ir_poms|investigate|loom_poms'
 
 #SRCFILES := $(shell find $(SRC_DIR) -maxdepth 1 -name '*.cpp' -or -name '*.c' | grep -P -v -i 'test_poms|main_poms|quilt' )
 #SRCFILES := $(shell find $(SRC_DIR) -maxdepth 1 -name '*.cpp' -or -name '*.c' | grep -P -v -i 'test_poms|main_poms|le_poms|mcmc_poms|lace_poms|ir_poms|bms_poms' )
@@ -98,6 +98,11 @@ poms.mcmc: $(LIBDIR)/mcmc_poms.cpp.o $(OBJS)
 lace: poms.lace
 poms.lace: $(LIBDIR)/lace_poms.cpp.o $(OBJS)
 	@$(CPP) $(OBJS) $(LIBDIR)/lace_poms.cpp.o -o $(BINDIR)/poms.lace $(CFLAGS) $(OPT)
+
+# local arc consistent entropy
+loom: poms.loom
+poms.loom: $(LIBDIR)/loom_poms.cpp.o $(OBJS)
+	@$(CPP) $(OBJS) $(LIBDIR)/loom_poms.cpp.o -o $(BINDIR)/poms.loom $(CFLAGS) $(OPT)
 
 ir: poms.ir
 poms.ir: $(LIBDIR)/ir_poms.cpp.o $(OBJS)
