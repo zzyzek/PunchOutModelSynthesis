@@ -10,11 +10,83 @@ var getopt = require("posix-getopt");
 
 var _eps = (1.0/(1024.0*1024.0));
 
+var STATE = "ok";
 
 var g_opt = {
-  "tiled_fn" : "out.json",
-  "poms_fn" : "poms.json"
+  "tiled_fn" : "",
+  "poms_fn" : ""
 };
+
+
+//PARSE INPUTS
+//
+
+function show_help(fp) {
+
+  fp.write("\nusage:\n");
+  fp.write("\n");
+  fp.write("    checkrule [poms|-C poms] [tiled|-1 tiled] [-h]\n");
+  fp.write("\n");
+  fp.write("  -C,--config     POMS JSON config file\n");
+  fp.write("  -1,--tiled-fn   Tiled JSON file\n");
+  fp.write("  -h,--help       help (this screen)\n");
+  fp.write("\n");
+}
+
+var long_opt = [
+  "h", "(help)",
+  "C", ":(config)",
+  "1", ":(tiled)"
+];
+
+var parser,opt;
+
+parser = new getopt.BasicParser(long_opt.join(""), process.argv);
+while ((opt = parser.getopt()) !== undefined) {
+  switch(opt.option) {
+    case 'h':
+      show_help(process.stdout);
+      process.exit(0);
+      break;
+    case 'C':
+      g_opt.poms_fn = opt.optarg;
+      break;
+    case '1':
+      g_opt.tiled_fn = opt.optarg;
+      break;
+    default:
+      show_help(process.stderr);
+      process.exit(1);
+      break;
+  }
+
+}
+
+if (parser.optind() < process.argv.length) {
+  if ((process.argv.length - parser.optind()) > 1) {
+    g_opt.poms_fn   = process.argv[parser.optind()];
+    g_opt.tiled_fn  = process.argv[parser.optind()+1];
+  }
+  else if (g_opt.poms_fn != "") {
+    g_opt.tiled_fn = process.argv[parser.optind()];
+  }
+  else if (g_opt.tiled_fn != "") {
+    g_opt.poms_fn = process.argv[parser.optind()];
+  }
+  else {
+    show_help(process.stderr);
+    process.exit(1);
+  }
+}
+
+if ((g_opt.poms_fn == "") ||
+    (g_opt.tiled_fn == "")) {
+  show_help(process.stderr);
+  process.exit(1);
+}
+
+//
+//PARSE INPUTS
 
 tiled_json = JSON.parse( fs.readFileSync(g_opt.tiled_fn) );
 poms_json = JSON.parse( fs.readFileSync(g_opt.poms_fn) );
@@ -80,6 +152,8 @@ for (let h=0; h<tiled_height; h++) {
 
       if (!(key in rule_map)) {
         console.log("key:", key, "not found @", w,h);
+
+        STATE = "error";
       }
     }
 
@@ -87,5 +161,5 @@ for (let h=0; h<tiled_height; h++) {
 
 }
 
-console.log("## done");
+console.log("##", STATE);
 

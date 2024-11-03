@@ -3,10 +3,8 @@
   "version": "0.1.0",
   "author": "zzyzek",
   "license": "cc0",
-  "dependencies" : {
-
-    "pngjs": "7",
-    "posix-getopt" : "1"
-
+  "dependencies": {
+    "pngjs": "^7.0.0",
+    "posix-getopt": "1"
   }
 }

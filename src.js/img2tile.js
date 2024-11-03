@@ -332,7 +332,6 @@ function build_null_tile(info) {
   let img = info.img;
   let w = img.width;
   let h = img.height;
-  //let stride = [info.stride, g_info.stride];
   let stride = info.stride;
 
   let st_w = info.supertile_dim[0];
@@ -480,6 +479,7 @@ function build_super_tile_lib(info) {
   build_null_tile(info);
   supertile_count = info["supertile_count"];
 
+
   // We build super tiles from the underlying example
   // image pixels, taking a window, with offset, and
   // converting those pixels to a string that's used
@@ -494,15 +494,15 @@ function build_super_tile_lib(info) {
 
       let boundaryInfo = {};
       if (y==0) { boundaryInfo[ "y-" ] = 1; }
-      //if ((y+stride[1]) >= h) { boundaryInfo.push( "y+" ); }
-
       if (x==0) { boundaryInfo[ "x-" ] = 1; }
-      //if ((x+stride[0])>=w) { boundaryInfo.push( "x+" ); }
+
+      if ((y+stride[1])==h) { boundaryInfo[ "y+" ] = 1; }
+      if ((x+stride[0])==w) { boundaryInfo[ "x+" ] = 1; }
 
       let idx = ((w*y) + x)*4;
 
-      let _sx = (x + st_ox);
-      let _sy = (y + st_oy);
+      let _sx = (x - st_ox);
+      let _sy = (y - st_oy);
 
       let _nx = st_w;
       let _ny = st_h;
@@ -512,7 +512,6 @@ function build_super_tile_lib(info) {
 
       let supertile_buf_wrap = [];
       let supertile_buf_str_wrap = [];
-      //let supertile_wrap = false;
 
       let key_buf = [];
 
@@ -545,7 +544,8 @@ function build_super_tile_lib(info) {
 
           let nei_pfx_char = [ "", "", "", "" ];
 
-          // add indexes for neighbor pixel ribbons
+          // add neighbor band overlap regions,
+          // both wrap and unrwapped in case we need them
           //
           let nei_list = [];
           for (let ii=0; ii<nei_bnd.length; ii++) {
@@ -569,14 +569,9 @@ function build_super_tile_lib(info) {
           if ( (tx<0) || (tx>=w) ||
                (ty<0) || (ty>=h) ) {
 
-            //if (info.rule_wrap) {
-              let _idx = ((((ty+h)%h)*w) + ((tx+w)%w))*4;
-              _pxl_wrap = [ data[_idx+0], data[_idx+1], data[_idx+2], data[_idx+3] ];
-            //}
-
-            //else {
-              _pxl = [ oob_pxl[0], oob_pxl[1], oob_pxl[2], oob_pxl[3] ];
-            //}
+            let _idx = ((((ty+h)%h)*w) + ((tx+w)%w))*4;
+            _pxl_wrap = [ data[_idx+0], data[_idx+1], data[_idx+2], data[_idx+3] ];
+            _pxl = [ oob_pxl[0], oob_pxl[1], oob_pxl[2], oob_pxl[3] ];
 
           }
           else {
@@ -584,44 +579,48 @@ function build_super_tile_lib(info) {
             _pxl_wrap = [ data[idx+0], data[idx+1], data[idx+2], data[idx+3] ];
           }
 
-          // add each pixel to supertile_buf and supertile_buf_wrap
+          // add each pixel (rgba) to supertile_buf and supertile_buf_wrap
           //
-          for (let ii=0; ii<4; ii++) {
+          for (let pxi=0; pxi<4; pxi++) {
 
             let _pfx = "";
 
-            if (ii==0) {
+            if (pxi==0) {
               if ((ty>_sy) && (tx==_sx)) { _pfx = ";"; }
               if (tx>_sx) { _pfx += ","; }
             }
 
-            supertile_buf.push(_pxl[ii]);
-            supertile_buf_str.push( _pfx + ((ii>0) ? ":" : "" ) + _hxs2(_pxl[ii]) );
+            supertile_buf.push(_pxl[pxi]);
+            supertile_buf_str.push( _pfx + ((pxi>0) ? ":" : "" ) + _hxs2(_pxl[pxi]) );
 
-            supertile_buf_wrap.push(_pxl_wrap[ii]);
-            supertile_buf_str_wrap.push( _pfx + ((ii>0) ? ":" : "" ) + _hxs2(_pxl_wrap[ii]) );
+            supertile_buf_wrap.push(_pxl_wrap[pxi]);
+            supertile_buf_str_wrap.push( _pfx + ((pxi>0) ? ":" : "" ) + _hxs2(_pxl_wrap[pxi]) );
 
             for (let jj=0; jj<nei_list.length; jj++) {
               let nei_idx = nei_list[jj];
-              if (ii==0) {
+              if (pxi==0) {
                 supertile_nei_str[nei_idx].push( nei_pfx_char[nei_idx] );
                 supertile_nei_str_wrap[nei_idx].push( nei_pfx_char[nei_idx] );
               }
-              supertile_nei_buf[nei_idx].push( _pxl[ii] );
-              supertile_nei_str[nei_idx].push( ((ii>0) ? ":" : "" ) + _hxs2(_pxl[ii]) );
+              supertile_nei_buf[nei_idx].push( _pxl[pxi] );
+              supertile_nei_str[nei_idx].push( ((pxi>0) ? ":" : "" ) + _hxs2(_pxl[pxi]) );
 
-              supertile_nei_buf_wrap[nei_idx].push( _pxl_wrap[ii] );
-              supertile_nei_str_wrap[nei_idx].push( ((ii>0) ? ":" : "" ) + _hxs2(_pxl_wrap[ii]) );
+              supertile_nei_buf_wrap[nei_idx].push( _pxl_wrap[pxi] );
+              supertile_nei_str_wrap[nei_idx].push( ((pxi>0) ? ":" : "" ) + _hxs2(_pxl_wrap[pxi]) );
             }
 
           }
 
-          // calculate simple tile key
+          // Calculate simple tile key.
+          // we take the displayable (flat) tile to be the (stride[0],stride[1]) tile lcoated
+          // in the supertile at supertile offset from the supertile origin.
           //
-          if ((rx < stride[0]) && (ry < stride[1])) {
+          if ( (rx >= st_ox) && (rx < (st_ox+stride[0])) &&
+               (ry >= st_oy) && (ry < (st_oy+stride[1])) ) {
             let _pfx = "";
-            if ((rx==0) && (ry > 0)) { _pfx += ";"; }
-            if ((rx>0)) { _pfx += ","; }
+            if ((rx==st_ox) && (ry > st_oy))  { _pfx += ";"; }
+            if ((rx >st_ox))                  { _pfx += ","; }
+
             simpletile_key_str.push( _pfx + _hxs2(_pxl[0]) + ":" + _hxs2(_pxl[1]) + ":" + _hxs2(_pxl[2]) + ":" + _hxs2(_pxl[3]) );
           }
 
@@ -657,8 +656,6 @@ function build_super_tile_lib(info) {
         };
         supertile_count++;
 
-
-        //for (let ii=0; ii<nei_bnd.length; ii++) { let nei_key = supertile_nei_str[ii].join(""); }
       }
       else {
         supertile_lib[ st_key ].freq++;
@@ -710,8 +707,8 @@ function build_super_tile_lib(info) {
         }
       }
 
-      // create map
-
+      // create flat map
+      //
       let _m_x = Math.floor(x / stride[0]);
       let _m_y = Math.floor(y / stride[1]);
       let _m_id = supertile_lib[st_key].id;
@@ -719,7 +716,6 @@ function build_super_tile_lib(info) {
 
       let _flat_id = supertile_lib[st_key].flat_id;
       flat_map_array[ _m_y*map_w + _m_x ] = _flat_id;
-
 
       //---
 
@@ -770,20 +766,40 @@ function build_super_tile_lib(info) {
     name_list.push( st_idx.toString() );
   }
 
+  // special consideration for null tile, add self adjacency in all
+  // directions
+  //
+  for (let idir=0; idir<6; idir++) {
+    adj_list.push( [ 0, 0, idir, 1 ] );
+  }
+
   // construct adjacency matrix
   //
   for (let st_a_idx=0; st_a_idx < supertile_count; st_a_idx++) {
 
+    if (st_a_idx == 0) { continue; }
+
     let st_a_key  = supertile_key[st_a_idx];
     let st_a_info = supertile_lib[st_a_key];
 
+    // we consider boundary tiles as a special case
+    //
     if ("x-" in st_a_info.boundaryInfo) {
-      adj_list.push( [ st_a_idx, 0, idir_map[1], 1 ] );
-      adj_list.push( [ 0, st_a_idx, idir_map[0], 1 ] );
+      adj_list.push( [ st_a_idx, 0, 1, 1 ] );
+      adj_list.push( [ 0, st_a_idx, 0, 1 ] );
     }
     if ("y-" in st_a_info.boundaryInfo) {
       adj_list.push( [ st_a_idx, 0, 3, 1 ] );
       adj_list.push( [ 0, st_a_idx, 2, 1 ] );
+    }
+
+    if ("x+" in st_a_info.boundaryInfo) {
+      adj_list.push( [ st_a_idx, 0, 0, 1 ] );
+      adj_list.push( [ 0, st_a_idx, 1, 1 ] );
+    }
+    if ("y+" in st_a_info.boundaryInfo) {
+      adj_list.push( [ st_a_idx, 0, 2, 1 ] );
+      adj_list.push( [ 0, st_a_idx, 3, 1 ] );
     }
 
     // add z boundary information
@@ -807,6 +823,13 @@ function build_super_tile_lib(info) {
         let _d1 = dir_code[oppo_dir_idx];
 
         if ( st_a_info.nei_key[dir_idx] == st_b_info.nei_key[oppo_dir_idx] ) {
+
+          // if we've discovered a null tile adjacency, skip over as we've handled
+          // it above.
+          // This is pretty hacky...
+          //
+          if ((st_a_idx == 0) || (st_b_idx == 0)) { continue; }
+
           adj_list.push( [ st_a_idx, st_b_idx, idir_map[dir_idx], 1 ] );
 
           if (DEBUG) {
@@ -1111,8 +1134,11 @@ function build_tile_set(info) {
       let st_key = info.supertile_key[tile_id];
       let tile_dat = info.supertile_lib[ st_key ].data;
 
-      st_sx = info.tile_offset[0];
-      st_sy = info.tile_offset[1];
+      //st_sx = info.tile_offset[0];
+      //st_sy = info.tile_offset[1];
+
+      st_sx = info.supertile_offset[0];
+      st_sy = info.supertile_offset[1];
 
       let st_w = info.supertile_dim[0];
       let st_h = info.supertile_dim[1];
@@ -1309,7 +1335,6 @@ function write_poms_json(info, out_fn) {
     poms_json.weight.push(1.0);
   }
 
-  //if (info.use_example_img_freq) {
   if (info.tile_weight_policy == "image") {
     for (let ii=0; ii<g_info.tile_name.length; ii++) {
       let st_key = g_info.supertile_key[ii];
