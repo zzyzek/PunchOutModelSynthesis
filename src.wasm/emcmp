@@ -6,6 +6,10 @@
 #       or some such.
 #       Also, manually symlink libyajl_s.a to libyajl.a
 #
+# * go into yajl:                       emconfigure ./configure
+# * go into yajl/build:                 emmake make
+# * go into yajl/build/yajl-2.1.1/lib:  ln -s libyajl_s.a libyajl.a
+#
 
 em++ \
   -DCUSTOM_MAIN \
