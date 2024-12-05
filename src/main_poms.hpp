@@ -22,7 +22,7 @@
 #include "auxExport.hpp"
 #include "TiledExport.hpp"
 
-#define POMS_BIN_VERSION "0.16.0"
+#define POMS_BIN_VERSION "0.17.0"
 
 enum NOISE_TYPE {
   NOISE_TYPE_NONE = 0,

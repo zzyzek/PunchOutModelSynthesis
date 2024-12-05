@@ -27,7 +27,7 @@
 
 #include "ac4_tier.hpp"
 
-#define POMS_VERSION "0.21.0"
+#define POMS_VERSION "0.23.0"
 
 #define POMS_VERBOSE_ERROR      -2
 #define POMS_VERBOSE_WARNING    -1
@@ -92,8 +92,8 @@
 #define POMS_OPTIMIZATION_AC4_TIER6     5
 #define POMS_OPTIMIZATION_AC4_TIER6_M   6
 
-//#define POMS_TILE_INT int16_t
-#define POMS_TILE_INT int32_t
+#define POMS_TILE_INT int16_t
+//#define POMS_TILE_INT int32_t
 
 typedef enum {
   POMS_PHASE_UNDEF=-1,

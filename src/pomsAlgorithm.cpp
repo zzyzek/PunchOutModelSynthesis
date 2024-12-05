@@ -910,13 +910,6 @@ int POMS::_WFCBlock_ac4(int32_t block[][2], int64_t wfc_step) {
 
     _r = pickCellMinEntropyWithinBlock( &cell, &tile_idx, &s, block );
 
-    //DEBUG
-    //if (m_cell_pin[cell] != 0) {
-    //  printf("SANITY wfc ac4, picked pinned cell %i\n", (int)cell);
-    //  return -1;
-    //}
-
-
     // We really shouldn't get an error here as we should have already
     // figured out there was a contradiction. Kept in for paranoia.
     //
@@ -1150,13 +1143,6 @@ int POMS::WFCBlock_ac4(int32_t block[][2], int64_t wfc_step) {
     }
 
     _r = pickCellMinEntropyWithinBlock( &cell, &tile_idx, &s, block );
-
-    //DEBUG
-    //if (m_cell_pin[cell] != 0) {
-    //  printf("SANITY wfc ac4, picked pinned cell %i\n", (int)cell);
-    //  return -1;
-    //}
-
 
     // We really shouldn't get an error here as we should have already
     // figured out there was a contradiction. Kept in for paranoia.
@@ -1873,12 +1859,6 @@ int POMS::chooseBlock_minEntropyBlock(int32_t block[][2], int64_t seq) {
   block[1][1] = block[1][0] + m_block_size[1];
   block[2][1] = block[2][0] + m_block_size[2];
 
-  //DEBUG
-  //DEBUG
-  //DEBUG
-  //printf("chooseblock_meb: min_block_val: %f, -m_zero: %f, ? %i\n",
-  //    min_block_val, -m_zero, min_block_val < -m_zero );
-
   if (min_block_val < -m_zero) { return -1; }
 
   return 0;
@@ -2298,6 +2278,7 @@ int POMS::BMS(int64_t max_rounds, int64_t bms_step) {
 //
 // Return:
 //
+//  1 - full resolved grid
 //  0 - success
 // <0 - error
 //
@@ -2339,11 +2320,16 @@ int POMS::BMSInit(void) {
   // probably redundant because of ac4init above, but shouldn't hurt
   //
   for (cell=0; cell<m_cell_count; cell++) {
-
-    //EXPERIMENT
     if (m_cell_pin[cell] != 0) { continue; }
-
     markAC4Dirty(m_plane, cell);
+  }
+
+  // A special case when the init itself just resolves the whole grid,
+  // give an indicator that it's been successful.
+  //
+  if (resolvedCount() == m_cell_count) {
+    ret = 1;
+    m_state = POMS_STATE_SUCCESS;
   }
 
   return ret;
@@ -2383,13 +2369,6 @@ int POMS::BMSBegin(void) {
   }
 
   r = chooseBlock(m_block, m_seq);
-
-  //DEBUG
-  //DEBUG
-  //DEBUG
-  //DEBUG
-  //printf("BMSBegin: chooseBlock: %i\n", r);
-
   if (r<0) { return r; }
 
   resetAC4Dirty(m_plane);

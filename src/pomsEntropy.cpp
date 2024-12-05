@@ -826,7 +826,7 @@ int POMS::sanityBlockEntropy(int32_t *block_size) {
   return 0;
 }
 
-// untested
+//
 //
 int POMS::computeBlockEntropy(int32_t *block_size, int32_t reuse_cell_entropy) {
   int64_t cell;

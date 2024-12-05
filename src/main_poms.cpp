@@ -1518,19 +1518,6 @@ int _patch_choice_wf_xyz2(g_ctx_t &ctx,
       block_start[0] = v[0];
       block_start[1] = v[1];
       block_start[2] = v[2];
-
-      //DEBUG
-      //printf("# wf_xy: [%i,%i,%i] v[%i,%i,%i] dxyz(%f,%f,%f) u:%f\n",
-      /*
-      printf("# wf_xyz2: u:%f, v[%i,%i,%i], dxyz(%f,%f,%f), start[%i,%i,%i]\n",
-          u,
-          v[0], v[1], v[2],
-          dx,dy,dz,
-          block_start[0],
-          block_start[1],
-          block_start[2]);
-          */
-
     }
 
   }
@@ -1694,16 +1681,6 @@ int _patch_choice_wf_cube(g_ctx_t &ctx,
       block_start[0] = v[0];
       block_start[1] = v[1];
       block_start[2] = v[2];
-
-      //DEBUG
-      printf("# wf_cube: u:%f, v[%i,%i,%i], dxyz(%f,%f,%f), start[%i,%i,%i]\n",
-          u,
-          v[0], v[1], v[2],
-          dx,dy,dz,
-          block_start[0],
-          block_start[1],
-          block_start[2]);
-
     }
 
   }
@@ -1787,17 +1764,6 @@ int _patch_choice_wf_xy(g_ctx_t &ctx,
       block_start[0] = v[0];
       block_start[1] = v[1];
       block_start[2] = v[2];
-
-      //DEBUG
-      //printf("# wf_xy: [%i,%i,%i] v[%i,%i,%i] dxyz(%f,%f,%f) u:%f\n",
-      printf("# wf_xy: u:%f, v[%i,%i,%i], dxyz(%f,%f,%f), start[%i,%i,%i]\n",
-          u,
-          v[0], v[1], v[2],
-          dx,dy,dz,
-          block_start[0],
-          block_start[1],
-          block_start[2]);
-
     }
 
   }
@@ -1872,19 +1838,6 @@ int _patch_choice_wf_xy_n(g_ctx_t &ctx,
       block_start[0] = v[0];
       block_start[1] = v[1];
       block_start[2] = v[2];
-
-      //DEBUG
-      //printf("# wf_xy: [%i,%i,%i] v[%i,%i,%i] dxyz(%f,%f,%f) u:%f\n",
-      /*
-      printf("# wf_xy_n: u:%f, v[%i,%i,%i], dxyz(%f,%f,%f), start[%i,%i,%i]\n",
-          u,
-          v[0], v[1], v[2],
-          dx,dy,dz,
-          block_start[0],
-          block_start[1],
-          block_start[2]);
-          */
-
     }
 
   }
@@ -3445,6 +3398,7 @@ int poms_main(int argc, char **argv) {
 
   for (quilt_step=0; quilt_step < max_quilt_step; quilt_step++) {
 
+
     //printf("## exporting quilt...\n");
     //_debug_export_quilt(poms);
 
@@ -3623,6 +3577,7 @@ int poms_main(int argc, char **argv) {
       continue;
     }
 
+
     //--------------------
     //    ___  __  _______
     //   / _ )/  |/  / __/
@@ -3633,57 +3588,68 @@ int poms_main(int argc, char **argv) {
 
 
     r = poms.BMSInit();
-    if (r!=0) { return err_and_return("BMSInit error"); }
+    if (r < 0) { return err_and_return("BMSInit error"); }
     _update_viz_init( opt, g_ctx );
 
-    n_it = ( (n_it <= 0) ? poms.blockSequenceCount() : n_it );
-    max_bms_step = poms.m_block_size[0]*poms.m_block_size[1]*poms.m_block_size[2];
+    if (r == 0) {
 
-    ret = 1;
+      n_it = ( (n_it <= 0) ? poms.blockSequenceCount() : n_it );
+      max_bms_step = poms.m_block_size[0]*poms.m_block_size[1]*poms.m_block_size[2];
 
-    if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-      printf("# bms, n_it: %i, max_bms_step:%i\n", (int)n_it, (int)max_bms_step);
-      fflush(stdout);
-    }
+      ret = 1;
 
-    for (it=0; (it<n_it) && (ret>=0); it++) {
-
-      opt.soften_window.choose_soften_size( poms.m_soften_size );
-      if (poms.m_verbose >= POMS_VERBOSE_STEP) {
-        printf("# bms, %i/%i, soften[%i,%i,%i]\n", (int)it, (int)n_it,
-            (int)poms.m_soften_size[0], (int)poms.m_soften_size[1], (int)poms.m_soften_size[2]);
+      if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+        printf("# bms, n_it: %i, max_bms_step:%i\n", (int)n_it, (int)max_bms_step);
+        fflush(stdout);
       }
 
-      r = poms.BMSBegin();
-      if (r<0) { ret=r; break; }
+      for (it=0; (it<n_it) && (ret>=0); it++) {
 
-      _update_viz_begin( it, opt, poms, g_ctx );
+        opt.soften_window.choose_soften_size( poms.m_soften_size );
+        if (poms.m_verbose >= POMS_VERBOSE_STEP) {
+          printf("# bms, %i/%i, soften[%i,%i,%i]\n", (int)it, (int)n_it,
+              (int)poms.m_soften_size[0], (int)poms.m_soften_size[1], (int)poms.m_soften_size[2]);
+        }
 
-      for (bms_step=0; bms_step<max_bms_step; bms_step++) {
+        r = poms.BMSBegin();
+        if (r<0) { ret=r; break; }
 
-        // run bms on block
+        _update_viz_begin( it, opt, poms, g_ctx );
+
+        for (bms_step=0; bms_step<max_bms_step; bms_step++) {
+
+          // run bms on block
+          //
+          r = poms.BMSStep();
+          if (r<=0) { break; }
+          _update_viz_step( bms_step, opt, poms, g_ctx );
+        }
+
+        // keep block or revert
         //
-        r = poms.BMSStep();
-        if (r<=0) { break; }
+        r = poms.BMSEnd();
+        if (r<=0) { ret=r; break; }
+
+        // viz here as well in case it gets skipped in the above
+        // iteration
+        //
         _update_viz_step( bms_step, opt, poms, g_ctx );
+
+        if (poms.m_verbose >= POMS_VERBOSE_STEP) {
+          printf("# it:%i/%i, m_state:%s(%i) (E:%i)\n",
+              (int)it, (int)n_it,
+              poms.stateDescr(poms.m_state), (int)poms.m_state,
+              (int)(poms.m_cell_count - poms.resolvedCount()) );
+        }
+
       }
 
-      // keep block or revert
-      //
-      r = poms.BMSEnd();
-      if (r<=0) { ret=r; break; }
+    }
+    else {
 
-      // viz here as well in case it gets skipped in the above
-      // iteration
+      // init fully resovled grid, fall through below and cleanup
       //
-      _update_viz_step( bms_step, opt, poms, g_ctx );
-
-      if (poms.m_verbose >= POMS_VERBOSE_STEP) {
-        printf("# it:%i/%i, m_state:%s(%i) (E:%i)\n",
-            (int)it, (int)n_it,
-            poms.stateDescr(poms.m_state), (int)poms.m_state,
-            (int)(poms.m_cell_count - poms.resolvedCount()) );
-      }
+      ret = 0;
 
     }
 
