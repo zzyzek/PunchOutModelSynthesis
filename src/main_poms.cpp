@@ -2623,6 +2623,81 @@ double window_alpha(_opt_t &opt) {
 }
 */
 
+int _update_viz_step( int64_t bms_step, _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
+  int _r;
+
+  if ((opt.viz_step>0) &&
+      ((bms_step%opt.viz_step)==0)) {
+    if (opt.gnuplot_fn.size() > 0) { viz_gnuplot_cellfreq_4d(poms, opt); }
+    if (opt.tiled_slideshow_dir.size() > 0) {
+      tiled_slideshow(ctx, opt, ctx.m_slideshow_id);
+      ctx.m_slideshow_id++;
+    }
+    if (ctx.tiled_snapshot_fn.size() > 0) {
+      _r = rt_tiled_snapshot(&ctx);
+      if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
+      if (ctx.global_callback) { ctx.global_callback(); }
+    }
+    if (ctx.patch_snapshot_fn.size() > 0) {
+      _r = rt_patch_snapshot(&ctx,1);
+      if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
+      if (ctx.global_callback) { ctx.global_callback(); }
+    }
+  }
+
+  return 0;
+}
+
+int _update_viz_init( _opt_t &opt, g_ctx_t &ctx ) {
+  int _r;
+
+  if (opt.viz_step>0) {
+    if (ctx.patch_snapshot_fn.size() > 0) {
+      _r = rt_patch_snapshot(&ctx,1);
+      if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
+
+      if (ctx.global_callback) { ctx.global_callback(); }
+    }
+  }
+
+  return 0;
+}
+
+
+int _update_viz_begin( int64_t it, _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
+  int _r;
+
+  if ((opt.viz_step>0) &&
+      ((it%opt.viz_step)==0)) {
+    if (ctx.patch_snapshot_fn.size() > 0) {
+      _r = rt_patch_snapshot(&ctx,1);
+      if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
+
+      if (ctx.global_callback) { ctx.global_callback(); }
+    }
+  }
+
+  return 0;
+}
+
+int _update_viz_fin( _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
+  int _r;
+
+  if (ctx.tiled_snapshot_fn.size() > 0) {
+    _r = rt_tiled_snapshot(&ctx);
+    if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
+    if (ctx.global_callback) { ctx.global_callback(); }
+  }
+  if (ctx.patch_snapshot_fn.size() > 0) {
+    _r = rt_patch_snapshot(&ctx,1);
+    if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
+    if (ctx.global_callback) { ctx.global_callback(); }
+  }
+
+  return 0;
+}
+
+
 
 //---
 //---
@@ -3252,16 +3327,17 @@ int poms_main(int argc, char **argv) {
     init_noise(poms, opt);
     poms.m_g_cb = custom_G;
 
-    //DEBUG
-    printf("## noise info:\n");
-    printf("## opt.noise{ preset:%i, option:%i, freq:%f, seed:%i  }\n",
-        opt.noise_preset, opt.noise_option, opt.noise_freq, opt.noise_seed);
-    printf("## g_ctx.noise[%i]:\n", (int)g_ctx.noise.size());
-    for (i=0; i<g_ctx.noise.size(); i++) {
-      printf("##   [%i]: { type:%i, {m:%f,M:%f,T:%f}, freq:%f, seed:%i }\n",
-          i, g_ctx.noise_type[i],
-          g_ctx.noise_min[i], g_ctx.noise_max[i], g_ctx.noise_threshold[i],
-          g_ctx.noise[i].frequency, g_ctx.noise[i].seed );
+    if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+      printf("## noise info:\n");
+      printf("## opt.noise{ preset:%i, option:%i, freq:%f, seed:%i  }\n",
+          opt.noise_preset, opt.noise_option, opt.noise_freq, opt.noise_seed);
+      printf("## g_ctx.noise[%i]:\n", (int)g_ctx.noise.size());
+      for (i=0; i<g_ctx.noise.size(); i++) {
+        printf("##   [%i]: { type:%i, {m:%f,M:%f,T:%f}, freq:%f, seed:%i }\n",
+            i, g_ctx.noise_type[i],
+            g_ctx.noise_min[i], g_ctx.noise_max[i], g_ctx.noise_threshold[i],
+            g_ctx.noise[i].frequency, g_ctx.noise[i].seed );
+      }
     }
 
     if (opt.noise_test) {
@@ -3292,24 +3368,6 @@ int poms_main(int argc, char **argv) {
   if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
     printf("# PHASE_START\n");
     poms.printDebug();
-
-    /*
-    poms.printDebugAC4();
-
-    r = poms.sanityArcConsistency();
-    if (r<0) {
-      printf("# sanityAC failed: got:%i, cell:%i, tile:%i(%s), dir:%i(%s), type:%i\n",
-          r,
-          (int)poms.m_conflict_cell,
-          (int)poms.m_conflict_tile, poms.m_tile_name[ poms.m_conflict_tile ].c_str(),
-          (int)poms.m_conflict_idir, poms.m_dir_desc[ poms.m_conflict_idir ].c_str(),
-          (int)poms.m_conflict_type);
-    }
-    else {
-      printf("# sanityAC: %i\n", r);
-    }
-    */
-
   }
 
   poms.m_tile_choice_policy = POMS_TILE_CHOICE_PROB;
@@ -3320,12 +3378,12 @@ int poms_main(int argc, char **argv) {
   }
 
   //------------------------------------
-  //              _ _ _   _             
-  //   __ _ _   _(_) | |_(_)_ __   __ _ 
+  //              _ _ _   _
+  //   __ _ _   _(_) | |_(_)_ __   __ _
   //  / _` | | | | | | __| | '_ \ / _` |
   // | (_| | |_| | | | |_| | | | | (_| |
   //  \__, |\__,_|_|_|\__|_|_| |_|\__, |
-  //     |_|                      |___/ 
+  //     |_|                      |___/
   //------------------------------------
 
 
@@ -3513,7 +3571,6 @@ int poms_main(int argc, char **argv) {
             poms.m_patch_region[1][0], poms.m_patch_region[1][1],
             poms.m_patch_region[2][0], poms.m_patch_region[2][1],
             (int)fail_counter, (int)fail_counter_reset);
-        //printf("# ...eroding quilt region (erode_p:%f {%f,%f})\n", erode_p, erode_p_s, erode_p_s);
       }
 
       //_erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])), erode_p );
@@ -3563,34 +3620,21 @@ int poms_main(int argc, char **argv) {
             (double)_count / (double)poms.m_quilt_cell_count);
       }
 
-
       continue;
     }
 
-    //DEBUG
-    //printf("after setupQuiltPatch:\n");
-    //poms.printDebug();
-    //DEBUG
-
-    //printf("# quilt__step: %i, debug_spot_checks.0 (after setupquiltpatch, before bmsinit):\n", (int)quilt_step);
-    //poms.printDebugSpotCheck();
+    //--------------------
+    //    ___  __  _______
+    //   / _ )/  |/  / __/
+    //  / _  / /|_/ /\ \
+    // /____/_/  /_/___/
+    //
+    //--------------------
 
 
     r = poms.BMSInit();
     if (r!=0) { return err_and_return("BMSInit error"); }
-
-    if (opt.viz_step>0) {
-      if (g_ctx.patch_snapshot_fn.size() > 0) {
-        _r = rt_patch_snapshot(&g_ctx,1);
-        if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
-
-        if (g_ctx.global_callback) { g_ctx.global_callback(); }
-      }
-    }
-
-
-    //printf("# quilt__step: %i, debug_spot_checks.1 (after setupquiltpatch, after bmsinit):\n", (int)quilt_step);
-    //poms.printDebugSpotCheck();
+    _update_viz_init( opt, g_ctx );
 
     n_it = ( (n_it <= 0) ? poms.blockSequenceCount() : n_it );
     max_bms_step = poms.m_block_size[0]*poms.m_block_size[1]*poms.m_block_size[2];
@@ -3604,9 +3648,6 @@ int poms_main(int argc, char **argv) {
 
     for (it=0; (it<n_it) && (ret>=0); it++) {
 
-      //????
-      //EXPERIMENTAL
-      //
       opt.soften_window.choose_soften_size( poms.m_soften_size );
       if (poms.m_verbose >= POMS_VERBOSE_STEP) {
         printf("# bms, %i/%i, soften[%i,%i,%i]\n", (int)it, (int)n_it,
@@ -3616,56 +3657,15 @@ int poms_main(int argc, char **argv) {
       r = poms.BMSBegin();
       if (r<0) { ret=r; break; }
 
-      if ((opt.viz_step>0) &&
-          ((it%opt.viz_step)==0)) {
-        if (g_ctx.patch_snapshot_fn.size() > 0) {
-          _r = rt_patch_snapshot(&g_ctx,1);
-          if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
-
-          if (g_ctx.global_callback) { g_ctx.global_callback(); }
-        }
-      }
-
+      _update_viz_begin( it, opt, poms, g_ctx );
 
       for (bms_step=0; bms_step<max_bms_step; bms_step++) {
 
-        // run wfc on block
+        // run bms on block
         //
         r = poms.BMSStep();
         if (r<=0) { break; }
-
-        if ((opt.viz_step>0) &&
-            ((bms_step%opt.viz_step)==0)) {
-
-          if (opt.gnuplot_fn.size() > 0) {
-            viz_gnuplot_cellfreq_4d(poms, opt);
-          }
-
-          if (opt.tiled_slideshow_dir.size() > 0) {
-            //tiled_slideshow(poms, opt, it*max_bms_step + bms_step);
-            //tiled_slideshow(g_ctx, opt, it*max_bms_step + bms_step);
-            tiled_slideshow(g_ctx, opt, g_ctx.m_slideshow_id);
-            g_ctx.m_slideshow_id++;
-          }
-
-          if (g_ctx.tiled_snapshot_fn.size() > 0) {
-            _r = rt_tiled_snapshot(&g_ctx);
-            if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
-
-            if (g_ctx.global_callback) { g_ctx.global_callback(); }
-          }
-
-          if (g_ctx.patch_snapshot_fn.size() > 0) {
-            _r = rt_patch_snapshot(&g_ctx,1);
-            if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
-
-            if (g_ctx.global_callback) { g_ctx.global_callback(); }
-          }
-
-
-
-        }
-
+        _update_viz_step( bms_step, opt, poms, g_ctx );
       }
 
       // keep block or revert
@@ -3676,37 +3676,7 @@ int poms_main(int argc, char **argv) {
       // viz here as well in case it gets skipped in the above
       // iteration
       //
-      if ((opt.viz_step>0) &&
-          ((it%opt.viz_step)==0)) {
-
-        if (opt.gnuplot_fn.size() > 0) {
-          viz_gnuplot_cellfreq_4d(poms, opt);
-        }
-
-        if (opt.tiled_slideshow_dir.size() > 0) {
-          //tiled_slideshow(poms, opt, it*max_bms_step + max_bms_step - 1);
-          //tiled_slideshow(g_ctx, opt, it*max_bms_step + max_bms_step - 1);
-          tiled_slideshow(g_ctx, opt, g_ctx.m_slideshow_id);
-          g_ctx.m_slideshow_id++;
-        }
-
-        if (g_ctx.tiled_snapshot_fn.size() > 0) {
-          _r = rt_tiled_snapshot(&g_ctx);
-          if (_r<0) {
-            printf("# failed to save snapshot, got (%i)\n", _r);
-          }
-
-          if (g_ctx.global_callback) { g_ctx.global_callback(); }
-        }
-
-        if (g_ctx.patch_snapshot_fn.size() > 0) {
-          _r = rt_patch_snapshot(&g_ctx,1);
-          if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
-
-          if (g_ctx.global_callback) { g_ctx.global_callback(); }
-        }
-
-      }
+      _update_viz_step( bms_step, opt, poms, g_ctx );
 
       if (poms.m_verbose >= POMS_VERBOSE_STEP) {
         printf("# it:%i/%i, m_state:%s(%i) (E:%i)\n",
@@ -3717,34 +3687,26 @@ int poms_main(int argc, char **argv) {
 
     }
 
-    if (g_ctx.tiled_snapshot_fn.size() > 0) {
-      _r = rt_tiled_snapshot(&g_ctx);
-      if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
+    _update_viz_fin( opt, poms, g_ctx );
 
-      if (g_ctx.global_callback) { g_ctx.global_callback(); }
-    }
+    //--------------------
+    //    ___  __  _______
+    //   / _ )/  |/  / __/
+    //  / _  / /|_/ /\ \
+    // /____/_/  /_/___/
+    //
+    //--------------------
 
-    if (g_ctx.patch_snapshot_fn.size() > 0) {
-      _r = rt_patch_snapshot(&g_ctx,1);
-      if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
-
-      if (g_ctx.global_callback) { g_ctx.global_callback(); }
-    }
 
     if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-
-      //poms.printDebugQuiltGrid(print_order);
-
       if (ret==-3) {
         printf("## SANITY? cell:%i, tile:%i, idir:%i, type: %i\n",
             (int)poms.m_conflict_cell, (int)poms.m_conflict_tile, (int)poms.m_conflict_idir,
             (int)poms.m_conflict_type);
-
         printf("# EXPORTING DEBUG PATCH...\n");
         _debug_export_patch(poms);
         _debug_export_quilt(poms);
       }
-
       _count = poms.quiltResolvedCount();
       printf("# got :%i, quilt cells resolved %i/%i(%f)\n", ret,
           (int)_count, (int)poms.m_quilt_cell_count,
@@ -3763,8 +3725,6 @@ int poms_main(int argc, char **argv) {
       if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
         poms.printDebugGrid();
       }
-
-      //poms.printDebugGrid(print_order);
 
       if (poms.m_verbose >= POMS_VERBOSE_STEP) {
         printf("## before save quilt: arc sanity: %i, ac4 consistency: %i, sanity quilt: %i\n",
@@ -3827,13 +3787,9 @@ int poms_main(int argc, char **argv) {
 
         erode_indicator=1;
 
-        //DEBUG
         if (poms.m_verbose >= POMS_VERBOSE_RUN) {
           printf("# ERODING {%f}\n", erode_p);
         }
-
-        //DEBUG
-          printf("# ERODING {%f}\n", erode_p);
 
         for (ii=0; ii<1; ii++) {
           _erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])) );

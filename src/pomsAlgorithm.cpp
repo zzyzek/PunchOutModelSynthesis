@@ -1873,6 +1873,12 @@ int POMS::chooseBlock_minEntropyBlock(int32_t block[][2], int64_t seq) {
   block[1][1] = block[1][0] + m_block_size[1];
   block[2][1] = block[2][0] + m_block_size[2];
 
+  //DEBUG
+  //DEBUG
+  //DEBUG
+  //printf("chooseblock_meb: min_block_val: %f, -m_zero: %f, ? %i\n",
+  //    min_block_val, -m_zero, min_block_val < -m_zero );
+
   if (min_block_val < -m_zero) { return -1; }
 
   return 0;
@@ -2377,6 +2383,13 @@ int POMS::BMSBegin(void) {
   }
 
   r = chooseBlock(m_block, m_seq);
+
+  //DEBUG
+  //DEBUG
+  //DEBUG
+  //DEBUG
+  //printf("BMSBegin: chooseBlock: %i\n", r);
+
   if (r<0) { return r; }
 
   resetAC4Dirty(m_plane);

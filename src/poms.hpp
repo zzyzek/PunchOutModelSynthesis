@@ -92,6 +92,8 @@
 #define POMS_OPTIMIZATION_AC4_TIER6     5
 #define POMS_OPTIMIZATION_AC4_TIER6_M   6
 
+//#define POMS_TILE_INT int16_t
+#define POMS_TILE_INT int32_t
 
 typedef enum {
   POMS_PHASE_UNDEF=-1,
@@ -219,8 +221,11 @@ class POMS {
 
       m_tile_count=0;
 
-      m_zero = 1.0/(1024.0*1024.0);
-      m_eps = 1.0/(1024.0*1024.0);
+      //m_zero = 1.0/(1024.0*1024.0);
+      //m_eps = 1.0/(1024.0*1024.0);
+
+      m_zero = 1.0/(1024.0*1024.0*1024.0);
+      m_eps = 1.0/(1024.0*1024.0*1024.0);
 
       m_size[0] = -1;
       m_size[1] = -1;
@@ -295,12 +300,14 @@ class POMS {
       m_constraint.clear();
       m_constraint_start_count=0;
 
-      m_tile_support_data_size  = (int32_t)sizeof(int16_t);
+      //m_tile_support_data_size  = (int32_t)sizeof(int16_t);
+      m_tile_support_data_size  = (int32_t)sizeof(POMS_TILE_INT);
       m_tile_support_cb = _tile_support_flat;
       m_ac4_class_p[0] = &(m_ac4_flat[0]);
       m_ac4_class_p[1] = &(m_ac4_flat[1]);
 
-      m_tile_data_size          = (int32_t)sizeof(int16_t);
+      //m_tile_data_size          = (int32_t)sizeof(int16_t);
+      m_tile_data_size          = (int32_t)sizeof(POMS_TILE_INT);
       //m_tile_data_size          = (int32_t)sizeof(int32_t);
 
       m_cell_tile_queue_data_size = (int32_t)sizeof(int32_t);
@@ -1012,7 +1019,8 @@ class POMS {
       return buf[ (cell*m_tile_count) + tile_idx ];
     }
 
-    int32_t cellBufTile( int16_t *buf, int64_t cell, int32_t tile_idx ) {
+    //int32_t cellBufTile( int16_t *buf, int64_t cell, int32_t tile_idx ) {
+    int32_t cellBufTile( POMS_TILE_INT *buf, int64_t cell, int32_t tile_idx ) {
       return buf[ (cell*m_tile_count) + tile_idx ];
     }
 
@@ -1023,7 +1031,8 @@ class POMS {
 
     int32_t cellBufSize32( int32_t *buf, int64_t cell ) { return buf[ cell ]; }
     int32_t cellBufSize16( int16_t *buf, int64_t cell ) { return buf[ cell ]; }
-    int32_t cellBufSize  ( int16_t *buf, int64_t cell ) { return buf[ cell ]; }
+    //int32_t cellBufSize  ( int16_t *buf, int64_t cell ) { return buf[ cell ]; }
+    int32_t cellBufSize  ( POMS_TILE_INT *buf, int64_t cell ) { return buf[ cell ]; }
 
     //---
 
@@ -1195,9 +1204,13 @@ class POMS {
     // m_tile_bp          - index of tile in m_tile (|cell| * |tile|)
     // m_tile_size        - number of tiles at cell for m_tile (|cell|)
     //
-    std::vector< int16_t >      m_tile[2];
-    std::vector< int16_t >      m_tile_bp[2];
-    std::vector< int16_t >      m_tile_size[2];
+    //std::vector< int16_t >      m_tile[2];
+    //std::vector< int16_t >      m_tile_bp[2];
+    //std::vector< int16_t >      m_tile_size[2];
+
+    std::vector< POMS_TILE_INT >      m_tile[2];
+    std::vector< POMS_TILE_INT >      m_tile_bp[2];
+    std::vector< POMS_TILE_INT >      m_tile_size[2];
 
     std::vector< uint8_t >      m_bv_tile[2];
     std::vector< uint8_t >      m_bv_tile_count[2];
@@ -1221,7 +1234,8 @@ class POMS {
     //  -1 : element unassigned
     // >=0 : tile assigned
     //
-    std::vector< int16_t >      m_quilt_tile;
+    //std::vector< int16_t >      m_quilt_tile;
+    std::vector< POMS_TILE_INT >      m_quilt_tile;
     std::vector< int8_t >       m_quilt_pin;
     int32_t                     m_quilt_size[3];
     int32_t                     m_quilt_stitch_size[3];
@@ -1276,8 +1290,11 @@ class POMS {
 
 
     //std::vector< int32_t >      m_prefatory;
-    std::vector< int16_t >      m_prefatory;
-    std::vector< int16_t >      m_prefatory_size;
+    //std::vector< int16_t >      m_prefatory;
+    //std::vector< int16_t >      m_prefatory_size;
+
+    std::vector< POMS_TILE_INT >  m_prefatory;
+    std::vector< POMS_TILE_INT >  m_prefatory_size;
 
     int32_t                     m_tile_data_size;
 
@@ -1298,8 +1315,9 @@ class POMS {
     // m_cell_tile_queue      - array of (cell,tile) values to process (|cell| * |tile|)
     // m_cell_tile_queue_size - size of m_cell_tile_queue
     //
-    std::vector< int16_t >      m_tile_support[2];
-    std::vector< int8_t >       m_cell_tile_visited[2];
+    //std::vector< int16_t >      m_tile_support[2];
+    std::vector< POMS_TILE_INT >  m_tile_support[2];
+    std::vector< int8_t >         m_cell_tile_visited[2];
 
     int32_t                     m_tile_support_data_size;
 
