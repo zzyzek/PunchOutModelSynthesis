@@ -2847,6 +2847,33 @@ int _update_viz_block_snapshot( _opt_t &opt, POMS &poms, int64_t quilt_step ) {
 // |___/___/_/|_/____/\____/___/___/
 //
 
+int _verbose_block_solver_start( POMS &poms, int64_t n_it, int64_t max_bms_step ) {
+  if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+    printf("# bms, n_it: %i, max_bms_step:%i\n", (int)n_it, (int)max_bms_step);
+  }
+  return 0;
+}
+
+int _verbose_block_solver_iter_beg( POMS &poms, int64_t it, int64_t n_it ) {
+  if (poms.m_verbose >= POMS_VERBOSE_STEP) {
+    printf("# bms, %i/%i, soften[%i,%i,%i]\n", (int)it, (int)n_it,
+        (int)poms.m_soften_size[0], (int)poms.m_soften_size[1], (int)poms.m_soften_size[2]);
+  }
+  return 0;
+}
+
+
+int _verbose_block_solver_iter_end( POMS &poms, int64_t it, int64_t n_it ) {
+  if (poms.m_verbose >= POMS_VERBOSE_STEP) {
+    printf("# it:%i/%i, m_state:%s(%i) (E:%i)\n",
+        (int)it, (int)n_it,
+        poms.stateDescr(poms.m_state), (int)poms.m_state,
+        (int)(poms.m_cell_count - poms.resolvedCount()) );
+  }
+  return 0;
+}
+
+
 int _verbose_setup_quilt_patch_fail( POMS &poms, int fail_counter, int fail_counter_reset ) {
   if (poms.m_verbose >= POMS_VERBOSE_RUN) {
     printf("# main: setupQuiltPatch failed, discarding region [%i:%i][%i:%i][%i:%i] (fail_counter:%i/%i)\n",
@@ -3757,18 +3784,9 @@ int poms_main(int argc, char **argv) {
 
   for (quilt_step=0; quilt_step < max_quilt_step; quilt_step++) {
 
-
-    //printf("## exporting quilt...\n");
-    //_debug_export_quilt(poms);
-
     g_ctx.m_iter++;
 
     opt.soften_window.choose_soften_size( poms.m_soften_size );
-
-    //poms.m_soften_size[0] = opt.soften_window.soften_size[0];
-    //poms.m_soften_size[1] = opt.soften_window.soften_size[1];
-    //poms.m_soften_size[2] = opt.soften_window.soften_size[2];
-
 
     // TODO:
     // many(most?) of these patch strategies are broken, need to go through
@@ -3829,51 +3847,13 @@ int poms_main(int argc, char **argv) {
       poms.m_patch_region[xyz][1] = quilt_s[xyz] + poms.m_size[xyz];
     }
 
-    _verbose_quilt_step_start( poms, opt, quilt_step, erode_p, erode_p_s, erode_p_e, fail_counter, fail_counter_reset );
-    /*
-    if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-      printf("#######################\n");
-      printf("# quilt step %i (%i/%i), patch [%i:%i,%i:%i,%i:%i] (block-choice:%s, patch-choice:%s) (erode_p:%f{%f:%f},fail_counter:%i/%i) "
-          "(tile-support-option:%i) (sanity:%i)\n",
-          (int)quilt_step, (int)poms.quiltResolvedCount(), (int)poms.m_quilt_cell_count,
-          poms.m_patch_region[0][0], poms.m_patch_region[0][1],
-          poms.m_patch_region[1][0], poms.m_patch_region[1][1],
-          poms.m_patch_region[2][0], poms.m_patch_region[2][1],
-          opt.block_choice_policy_str.c_str(),
-          opt.patch_choice_policy_str.c_str(),
-          erode_p, erode_p_s, erode_p_e,
-          (int)fail_counter, (int)fail_counter_reset,
-          poms.m_tile_support_option,
-          poms.sanityQuilt() );
-          //_block_choice_descr[ quilt_step%4 ].c_str());
-      printf("# bms: tile_choice_policy: %i, block_choice_policy: %i, block:[%i,%i,%i], soften:[%i,%i,%i]\n",
-          (int)poms.m_tile_choice_policy,
-          (int)poms.m_block_choice_policy,
-          (int)poms.m_block_size[0], (int)poms.m_block_size[1], (int)poms.m_block_size[2],
-          (int)poms.m_soften_size[0], (int)poms.m_soften_size[1], (int)poms.m_soften_size[2]);
-      printf("# block_choice_policy: %i\n", poms.m_block_choice_policy);
-      printf("# distance_modifier_opt: %i\n", poms.m_distance_modifier_opt);
-
-      printf("\n\n");
-      //fflush(stdout);
-    }
-    */
+    ac4init_fail_indicator = 0;
+    erode_indicator = 0;
 
     // Take POMS snapshot so we can debug this block
     //
+    _verbose_quilt_step_start( poms, opt, quilt_step, erode_p, erode_p_s, erode_p_e, fail_counter, fail_counter_reset );
     _update_viz_block_snapshot( opt, poms, quilt_step );
-    /*
-    if (opt.poms_block_snapshot_fn.size() > 0) {
-      snprintf(tmp_fn, 127, "%s.it%i", opt.poms_block_snapshot_fn.c_str(), (int)quilt_step);
-      if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-        printf("## exporting block poms '%s'\n", tmp_fn);
-      }
-      poms.exportPOMSBlock(tmp_fn);
-    }
-    */
-
-    ac4init_fail_indicator = 0;
-    erode_indicator = 0;
 
     // Setup patch (block) for block level solver
     //
@@ -3884,20 +3864,13 @@ int poms_main(int argc, char **argv) {
       fail_counter++;
 
       _verbose_setup_quilt_patch_fail( poms, fail_counter, fail_counter_reset );
-      /*
-      if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-        printf("# main: setupQuiltPatch failed, discarding region [%i:%i][%i:%i][%i:%i] (fail_counter:%i/%i)\n",
-            poms.m_patch_region[0][0], poms.m_patch_region[0][1],
-            poms.m_patch_region[1][0], poms.m_patch_region[1][1],
-            poms.m_patch_region[2][0], poms.m_patch_region[2][1],
-            (int)fail_counter, (int)fail_counter_reset);
-      }
-      */
 
       // REVERSION
       //
       _remove_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])), 1 );
 
+      // EROSION
+      //
       if (fail_counter >= fail_counter_reset) {
 
         erode_indicator = 1;
@@ -3905,11 +3878,6 @@ int poms_main(int argc, char **argv) {
         fail_counter = 0;
 
         _verbose_eroding( poms, erode_p, erode_p_s, erode_p_e );
-        /*
-        if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-          printf("# ERODING (erode_p:%f {%f,%f})\n", erode_p, erode_p_s, erode_p_s);
-        }
-        */
 
         for (ii=0; ii<1; ii++) {
           _erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])) );
@@ -3919,36 +3887,7 @@ int poms_main(int argc, char **argv) {
       }
 
       _update_viz_snapshots( opt, poms, g_ctx );
-      /*
-      if (g_ctx.tiled_snapshot_fn.size() > 0) {
-        _r = rt_tiled_snapshot(&g_ctx);
-        if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
-
-        if (g_ctx.global_callback) { g_ctx.global_callback(); }
-      }
-
-      if (g_ctx.patch_snapshot_fn.size() > 0) {
-        _r = rt_patch_snapshot(&g_ctx,1);
-        if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
-
-        if (g_ctx.global_callback) { g_ctx.global_callback(); }
-      }
-      */
-
       _verbose_quilt_step( poms, ret, quilt_step, fail_counter, ac4init_fail_indicator, erode_indicator );
-      /*
-      if (poms.m_verbose >= POMS_VERBOSE_ITER) {
-        _count = poms.quiltResolvedCount();
-        printf("# quilt_step:%i got:%i fail_counter:%i ac4init_fail:%i erode:%i quilt_cells_resolved:%i/%i(%f)\n",
-            (int)quilt_step,
-            ret,
-            (int)fail_counter,
-            (int)ac4init_fail_indicator,
-            (int)erode_indicator,
-            (int)_count, (int)poms.m_quilt_cell_count,
-            (double)_count / (double)poms.m_quilt_cell_count);
-      }
-      */
 
       continue;
     }
@@ -3974,17 +3913,12 @@ int poms_main(int argc, char **argv) {
 
       ret = 1;
 
-      if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-        printf("# bms, n_it: %i, max_bms_step:%i\n", (int)n_it, (int)max_bms_step);
-      }
+      _verbose_block_solver_start( poms, n_it, max_bms_step );
 
       for (it=0; (it<n_it) && (ret>=0); it++) {
 
         opt.soften_window.choose_soften_size( poms.m_soften_size );
-        if (poms.m_verbose >= POMS_VERBOSE_STEP) {
-          printf("# bms, %i/%i, soften[%i,%i,%i]\n", (int)it, (int)n_it,
-              (int)poms.m_soften_size[0], (int)poms.m_soften_size[1], (int)poms.m_soften_size[2]);
-        }
+        _verbose_block_solver_iter_beg( poms, it, n_it );
 
         r = poms.BMSBegin();
         if (r<0) { ret=r; break; }
@@ -4008,14 +3942,7 @@ int poms_main(int argc, char **argv) {
         // iteration
         //
         _update_viz_step( bms_step, opt, poms, g_ctx );
-
-        if (poms.m_verbose >= POMS_VERBOSE_STEP) {
-          printf("# it:%i/%i, m_state:%s(%i) (E:%i)\n",
-              (int)it, (int)n_it,
-              poms.stateDescr(poms.m_state), (int)poms.m_state,
-              (int)(poms.m_cell_count - poms.resolvedCount()) );
-        }
-
+        _verbose_block_solver_iter_end( poms, it, n_it );
       }
 
     }
@@ -4036,81 +3963,28 @@ int poms_main(int argc, char **argv) {
 
 
     _verbose_end_step( poms, ret );
-    /*
-    if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-      if (ret==-3) {
-        printf("## SANITY? cell:%i, tile:%i, idir:%i, type: %i\n",
-            (int)poms.m_conflict_cell, (int)poms.m_conflict_tile, (int)poms.m_conflict_idir,
-            (int)poms.m_conflict_type);
-        printf("# EXPORTING DEBUG PATCH...\n");
-        _debug_export_patch(poms);
-        _debug_export_quilt(poms);
-      }
-      _count = poms.quiltResolvedCount();
-      printf("# got :%i, quilt cells resolved %i/%i(%f)\n", ret,
-          (int)_count, (int)poms.m_quilt_cell_count,
-          (double)_count / (double)poms.m_quilt_cell_count);
-    }
-
-    if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
-      poms.printDebug();
-      printf("------\n");
-    }
-    */
 
     erode_indicator=0;
 
     if (ret == 0) {
 
       _verbose_quilt_save_begin( poms );
-      /*
-      if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
-        poms.printDebugGrid();
-      }
 
-      if (poms.m_verbose >= POMS_VERBOSE_STEP) {
-        printf("## before save quilt: arc sanity: %i, ac4 consistency: %i, sanity quilt: %i\n",
-            poms.sanityArcConsistency(),
-            poms.AC4Consistency(),
-            poms.sanityQuilt());
-      }
-      */
-
+      // SUCCESS
+      //
       r = poms.saveQuiltPatchRegion();
       if (r<0) { return err_and_return("saveQuiltPatchRegion error"); }
 
       _verbose_quilt_save_end( poms, ret, print_order );
-      /*
-      if (poms.m_verbose >= POMS_VERBOSE_STEP) {
-        printf("## saving quilt patch [%i;%i][%i:%i][%i:%i]\n",
-              poms.m_patch_region[0][0], poms.m_patch_region[0][1],
-              poms.m_patch_region[1][0], poms.m_patch_region[1][1],
-              poms.m_patch_region[2][0], poms.m_patch_region[2][1]);
-      }
-
-      if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-        poms.printDebugQuiltGrid(print_order);
-        _count = poms.quiltResolvedCount();
-        printf("# got :%i, quilt cells resolved %i/%i(%f)\n", ret,
-            (int)_count, (int)poms.m_quilt_cell_count,
-            (double)_count / (double)poms.m_quilt_cell_count);
-      }
-      */
 
       _update_viz_stl_snapshot(opt, poms);
     }
     else {
 
       _verbose_erode_begin( poms );
-      /*
-      if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-        printf("## REJECT quilt patch [%i;%i][%i:%i][%i:%i]\n",
-              poms.m_patch_region[0][0], poms.m_patch_region[0][1],
-              poms.m_patch_region[1][0], poms.m_patch_region[1][1],
-              poms.m_patch_region[2][0], poms.m_patch_region[2][1]);
-      }
-      */
 
+      // EROSION
+      //
       fail_counter++;
       if (fail_counter >= fail_counter_reset) {
         fail_counter=0;
@@ -4118,12 +3992,7 @@ int poms_main(int argc, char **argv) {
         erode_indicator=1;
 
         _verbose_eroding( poms, erode_p, erode_p_s, erode_p_e );
-        /*
-        if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-          printf("# ERODING {%f}\n", erode_p);
-        }
-        */
-
+  
         for (ii=0; ii<1; ii++) {
           _erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])) );
           _erode_quilt(g_ctx,erode_p);
@@ -4134,22 +4003,6 @@ int poms_main(int argc, char **argv) {
     }
 
     _verbose_quilt_step( poms, ret, quilt_step, fail_counter, ac4init_fail_indicator, erode_indicator );
-    /*
-    if (poms.m_verbose >= POMS_VERBOSE_ITER) {
-      _count = poms.quiltResolvedCount();
-      printf("# quilt_step:%i got:%i fail_counter:%i ac4init_fail:%i erode:%i quilt_cells_resolved:%i/%i(%f)\n",
-          (int)quilt_step,
-          ret,
-          (int)fail_counter,
-          (int)ac4init_fail_indicator,
-          (int)erode_indicator,
-          (int)_count, (int)poms.m_quilt_cell_count,
-          (double)_count / (double)poms.m_quilt_cell_count);
-    }
-    */
-
-
-
 
     // see if we've found a full resolution
     //
@@ -4157,54 +4010,16 @@ int poms_main(int argc, char **argv) {
       quilting = 0;
       break;
     }
-    //quilt_step++;
 
     //----
     //----
     //----
 
     _update_viz_tiled_intermediate( opt, poms );
-    /*
-    if (opt.tiled_fn.size() > 0) {
-      if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
-        printf("# exporting intermediate Tiled JSON file '%s'\n", opt.tiled_fn.c_str());
-      }
-      poms.exportTiledJSON( opt.tiled_fn, opt.tiled_fmt_type, 1 );
-    }
-    */
-
     _update_viz_stl( opt, poms );
-    /*
-    // need to load obj
-    //
-    if (opt.stl_fn.size() > 0) {
-      if (poms.m_objMap.size() > 0) {
-        if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
-          printf("# exporting to STL file '%s'\n", opt.stl_fn.c_str());
-        }
-        exportQuiltSTL(poms, opt.stl_fn);
-      }
-      else {
-        if (poms.m_verbose >= POMS_VERBOSE_WARNING) {
-          printf("WARNING: STL '%s' file specified but no objMap detected, not writing\n", opt.stl_fn.c_str());
-        }
-      }
-
-    }
-    */
-
-
   }
 
   _verbose_fin(poms, quilting, quilt_step );
-  /*
-  if (poms.m_verbose >= POMS_VERBOSE_ITER) {
-    printf("## FIN:%i quilt_step:%i quilt_cells_resolved:%i/%i\n",
-        (int)quilting,
-        (int)quilt_step,
-        (int)poms.quiltResolvedCount(), (int)poms.m_quilt_cell_count);
-  }
-  */
 
   if (poms.m_verbose >= POMS_VERBOSE_RUN) {
     printf("## PROF\n");
