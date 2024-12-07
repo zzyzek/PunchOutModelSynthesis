@@ -2661,7 +2661,7 @@ double window_alpha(_opt_t &opt) {
 // |___/___/ /___/
 //
 
-int _update_viz_step( int64_t bms_step, _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
+static int _update_viz_step( int64_t bms_step, _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
   int _r;
 
   if ((opt.viz_step>0) &&
@@ -2686,7 +2686,8 @@ int _update_viz_step( int64_t bms_step, _opt_t &opt, POMS &poms, g_ctx_t &ctx ) 
   return 0;
 }
 
-int _update_viz_init( _opt_t &opt, g_ctx_t &ctx ) {
+
+static int _update_viz_init( _opt_t &opt, g_ctx_t &ctx ) {
   int _r;
 
   if (opt.viz_step>0) {
@@ -2702,7 +2703,7 @@ int _update_viz_init( _opt_t &opt, g_ctx_t &ctx ) {
 }
 
 
-int _update_viz_begin( int64_t it, _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
+static int _update_viz_begin( int64_t it, _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
   int _r;
 
   if ((opt.viz_step>0) &&
@@ -2718,7 +2719,8 @@ int _update_viz_begin( int64_t it, _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
   return 0;
 }
 
-int _update_viz_snapshots( _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
+
+static int _update_viz_snapshots( _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
   int _r;
 
   if (ctx.tiled_snapshot_fn.size() > 0) {
@@ -2736,7 +2738,7 @@ int _update_viz_snapshots( _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
 }
 
 
-int _update_viz_stl_snapshot( _opt_t &opt, POMS &poms ) {
+static int _update_viz_stl_snapshot( _opt_t &opt, POMS &poms ) {
   // need to load obj
   //
   if (opt.stl_snapshot_fn.size() > 0) {
@@ -2760,7 +2762,8 @@ int _update_viz_stl_snapshot( _opt_t &opt, POMS &poms ) {
   return 0;
 }
 
-int _update_viz_stl( _opt_t &opt, POMS &poms ) {
+
+static int _update_viz_stl( _opt_t &opt, POMS &poms ) {
   // need to load obj
   //
   if (opt.stl_fn.size() > 0) {
@@ -2782,7 +2785,7 @@ int _update_viz_stl( _opt_t &opt, POMS &poms ) {
 }
 
 
-int _update_viz_patch_snapshot( g_ctx_t &ctx ) {
+static int _update_viz_patch_snapshot( g_ctx_t &ctx ) {
   int _r;
   if (ctx.patch_snapshot_fn.size() > 0) {
     _r = rt_patch_snapshot(&ctx,0);
@@ -2794,8 +2797,7 @@ int _update_viz_patch_snapshot( g_ctx_t &ctx ) {
 }
 
 
-
-int _update_viz_tiled_fin( _opt_t &opt, POMS &poms ) {
+static int _update_viz_tiled_fin( _opt_t &opt, POMS &poms ) {
   if (opt.tiled_fn.size() > 0) {
     if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
       printf("# exporting final Tiled JSON file '%s'\n", opt.tiled_fn.c_str());
@@ -2805,7 +2807,8 @@ int _update_viz_tiled_fin( _opt_t &opt, POMS &poms ) {
   return 0;
 }
 
-int _update_viz_tiled_intermediate( _opt_t &opt, POMS &poms ) {
+
+static int _update_viz_tiled_intermediate( _opt_t &opt, POMS &poms ) {
   if (opt.tiled_fn.size() > 0) {
     if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
       printf("# exporting intermediate Tiled JSON file '%s'\n", opt.tiled_fn.c_str());
@@ -2816,7 +2819,7 @@ int _update_viz_tiled_intermediate( _opt_t &opt, POMS &poms ) {
 }
 
 
-int _update_viz_block_snapshot( _opt_t &opt, POMS &poms, int64_t quilt_step ) {
+static int _update_viz_block_snapshot( _opt_t &opt, POMS &poms, int64_t quilt_step ) {
   char tmp_fn[128];
   if (opt.poms_block_snapshot_fn.size() > 0) {
     snprintf(tmp_fn, 127, "%s.it%i", opt.poms_block_snapshot_fn.c_str(), (int)quilt_step);
@@ -2847,14 +2850,15 @@ int _update_viz_block_snapshot( _opt_t &opt, POMS &poms, int64_t quilt_step ) {
 // |___/___/_/|_/____/\____/___/___/
 //
 
-int _verbose_block_solver_start( POMS &poms, int64_t n_it, int64_t max_bms_step ) {
+static int _verbose_block_solver_start( POMS &poms, int64_t n_it, int64_t max_bms_step ) {
   if (poms.m_verbose >= POMS_VERBOSE_RUN) {
     printf("# bms, n_it: %i, max_bms_step:%i\n", (int)n_it, (int)max_bms_step);
   }
   return 0;
 }
 
-int _verbose_block_solver_iter_beg( POMS &poms, int64_t it, int64_t n_it ) {
+
+static int _verbose_block_solver_iter_beg( POMS &poms, int64_t it, int64_t n_it ) {
   if (poms.m_verbose >= POMS_VERBOSE_STEP) {
     printf("# bms, %i/%i, soften[%i,%i,%i]\n", (int)it, (int)n_it,
         (int)poms.m_soften_size[0], (int)poms.m_soften_size[1], (int)poms.m_soften_size[2]);
@@ -2863,7 +2867,7 @@ int _verbose_block_solver_iter_beg( POMS &poms, int64_t it, int64_t n_it ) {
 }
 
 
-int _verbose_block_solver_iter_end( POMS &poms, int64_t it, int64_t n_it ) {
+static int _verbose_block_solver_iter_end( POMS &poms, int64_t it, int64_t n_it ) {
   if (poms.m_verbose >= POMS_VERBOSE_STEP) {
     printf("# it:%i/%i, m_state:%s(%i) (E:%i)\n",
         (int)it, (int)n_it,
@@ -2874,7 +2878,7 @@ int _verbose_block_solver_iter_end( POMS &poms, int64_t it, int64_t n_it ) {
 }
 
 
-int _verbose_setup_quilt_patch_fail( POMS &poms, int fail_counter, int fail_counter_reset ) {
+static int _verbose_setup_quilt_patch_fail( POMS &poms, int fail_counter, int fail_counter_reset ) {
   if (poms.m_verbose >= POMS_VERBOSE_RUN) {
     printf("# main: setupQuiltPatch failed, discarding region [%i:%i][%i:%i][%i:%i] (fail_counter:%i/%i)\n",
         poms.m_patch_region[0][0], poms.m_patch_region[0][1],
@@ -2885,7 +2889,8 @@ int _verbose_setup_quilt_patch_fail( POMS &poms, int fail_counter, int fail_coun
   return 0;
 }
 
-int _verbose_fin( POMS &poms, int quilting, int64_t quilt_step ) {
+
+static int _verbose_fin( POMS &poms, int quilting, int64_t quilt_step ) {
   if (poms.m_verbose >= POMS_VERBOSE_ITER) {
     printf("## FIN:%i quilt_step:%i quilt_cells_resolved:%i/%i\n",
         (int)quilting,
@@ -2895,7 +2900,8 @@ int _verbose_fin( POMS &poms, int quilting, int64_t quilt_step ) {
   return 0;
 }
 
-int _verbose_end_step( POMS &poms, int ret ) {
+
+static int _verbose_end_step( POMS &poms, int ret ) {
   int64_t _count=0;
   if (poms.m_verbose >= POMS_VERBOSE_RUN) {
     if (ret==-3) {
@@ -2919,7 +2925,8 @@ int _verbose_end_step( POMS &poms, int ret ) {
   return ret;
 }
 
-int _verbose_quilt_save_begin( POMS &poms ) {
+
+static int _verbose_quilt_save_begin( POMS &poms ) {
   if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
     poms.printDebugGrid();
   }
@@ -2933,7 +2940,8 @@ int _verbose_quilt_save_begin( POMS &poms ) {
   return 0;
 }
 
-int _verbose_quilt_save_end( POMS &poms, int ret, int32_t *print_order ) {
+
+static int _verbose_quilt_save_end( POMS &poms, int ret, int32_t *print_order ) {
   int64_t _count=0;
   if (poms.m_verbose >= POMS_VERBOSE_STEP) {
     printf("## saving quilt patch [%i;%i][%i:%i][%i:%i]\n",
@@ -2952,7 +2960,8 @@ int _verbose_quilt_save_end( POMS &poms, int ret, int32_t *print_order ) {
   return 0;
 }
 
-int _verbose_erode_begin( POMS &poms ) {
+
+static int _verbose_erode_begin( POMS &poms ) {
   if (poms.m_verbose >= POMS_VERBOSE_RUN) {
     printf("## REJECT quilt patch [%i;%i][%i:%i][%i:%i]\n",
           poms.m_patch_region[0][0], poms.m_patch_region[0][1],
@@ -2962,17 +2971,19 @@ int _verbose_erode_begin( POMS &poms ) {
   return 0;
 }
 
-int _verbose_eroding( POMS &poms, double erode_p, double erode_p_s, double erode_p_e ) {
+
+static int _verbose_eroding( POMS &poms, double erode_p, double erode_p_s, double erode_p_e ) {
   if (poms.m_verbose >= POMS_VERBOSE_RUN) {
     printf("# ERODING (erode_p:%f {%f,%f})\n", erode_p, erode_p_s, erode_p_e);
   }
   return 0;
 }
 
-int _verbose_quilt_step_start( POMS &poms, _opt_t &opt,
-                               int64_t quilt_step,
-                               double erode_p, double erode_p_s, double erode_p_e,
-                               int fail_counter, int fail_counter_reset ) {
+
+static int _verbose_quilt_step_start( POMS &poms, _opt_t &opt,
+                                      int64_t quilt_step,
+                                      double erode_p, double erode_p_s, double erode_p_e,
+                                      int fail_counter, int fail_counter_reset ) {
   if (poms.m_verbose >= POMS_VERBOSE_RUN) {
     printf("#######################\n");
     printf("# quilt step %i (%i/%i), patch [%i:%i,%i:%i,%i:%i] (block-choice:%s, patch-choice:%s) (erode_p:%f{%f:%f},fail_counter:%i/%i) "
@@ -3002,7 +3013,8 @@ int _verbose_quilt_step_start( POMS &poms, _opt_t &opt,
   return 0;
 }
 
-int _verbose_quilt_step( POMS &poms, int ret, int64_t quilt_step, int fail_counter, int ac4init_fail_indicator, int erode_indicator ) {
+
+static int _verbose_quilt_step( POMS &poms, int ret, int64_t quilt_step, int fail_counter, int ac4init_fail_indicator, int erode_indicator ) {
   int64_t _count=0;
   if (poms.m_verbose >= POMS_VERBOSE_ITER) {
     _count = poms.quiltResolvedCount();
