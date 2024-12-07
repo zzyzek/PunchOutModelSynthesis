@@ -478,6 +478,58 @@ static int _parse_tileset_info( tileset_ctx_t &ctx, yajl_val root_node ) {
   return 0;
 }
 
+static int _parse_flat_tileset_info( tileset_ctx_t &ctx, yajl_val root_node ) {
+  const char *ts[]              = { "flatTileset", NULL};
+  const char *ts_image[]        = { "flatTileset", "image", NULL};
+  const char *ts_tilecount[]    = { "flatTileset", "tilecount", NULL};
+  const char *ts_imageheight[]  = { "flatTileset", "imageheight", NULL};
+  const char *ts_imagewidth[]   = { "flatTileset", "imagewidth", NULL};
+  const char *ts_tileheight[]   = { "flatTileset", "tileheight", NULL};
+  const char *ts_tilewidth[]    = { "flatTileset", "tilewidth", NULL};
+
+  std::string _s;
+  yajl_val node;
+  yajl_val v0, v1, v2;
+  yajl_val vp, va, vs, vi, vn, vo;
+  char errbuf[1024];
+
+  std::string image_fn;
+  int32_t tilecount=-1,
+          imageheight=-1, imagewidth=-1,
+          tileheight=-1, tilewidth=-1;
+
+  vo = yajl_tree_get( root_node, ts, yajl_t_object );
+  if (!vo) { return -1; }
+
+  vs = yajl_tree_get( root_node, ts_image, yajl_t_string );
+  if (vs) { image_fn = YAJL_GET_STRING(vs); }
+
+  vi = yajl_tree_get( root_node, ts_tilecount, yajl_t_number );
+  if (vi) { tilecount = YAJL_GET_INTEGER( vi ); }
+
+  vi = yajl_tree_get( root_node, ts_imageheight, yajl_t_number );
+  if (vi) { imageheight = YAJL_GET_INTEGER( vi ); }
+
+  vi = yajl_tree_get( root_node, ts_imagewidth, yajl_t_number );
+  if (vi) { imagewidth = YAJL_GET_INTEGER( vi ); }
+
+  vi = yajl_tree_get( root_node, ts_tileheight, yajl_t_number );
+  if (vi) { tileheight = YAJL_GET_INTEGER( vi ); }
+
+  vi = yajl_tree_get( root_node, ts_tilewidth, yajl_t_number );
+  if (vi) { tilewidth = YAJL_GET_INTEGER( vi ); }
+
+  ctx.name          = image_fn;
+  ctx.image         = image_fn;
+  ctx.tilecount     = tilecount;
+  ctx.imagewidth    = imagewidth;
+  ctx.imageheight   = imageheight;
+  ctx.tilewidth     = tilewidth;
+  ctx.tileheight    = tileheight;
+
+  return 0;
+}
+
 int POMS::loadJSONString(std::string &json_buf) {
   const char *size_path[] = {"size", NULL};
   const char *rule_path[] = {"rule", NULL};
@@ -755,6 +807,7 @@ int POMS::loadJSONString(std::string &json_buf) {
   }
 
   _parse_tileset_info( m_tileset_ctx, root_node );
+  _parse_tileset_info( m_flat_tileset_ctx, root_node );
 
   //--
 

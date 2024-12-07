@@ -122,6 +122,7 @@ typedef struct _opt_type {
   std::string gnuplot_fn;
   std::string cfg_fn;
   std::string tiled_fn;
+  std::string sliced_tiled_fn;
   std::string stl_fn;
   std::string tiled_slideshow_dir;
   std::string tiled_snapshot_fn;
@@ -171,18 +172,19 @@ static struct option long_options[] = {
   {"rand-w",    required_argument,  0, 'w' },
   {"rand-E",    required_argument,  0, 'E' },
 
-  {"block-policy",  required_argument,  0, 'P' },
-  {"config",        required_argument,  0, 'C' },
-  {"tiled",         required_argument,  0, '1' },
-  {"stl",           required_argument,  0, '2' },
-  {"tiled-poms",    required_argument,  0, '3' },
+  {"block-policy",      required_argument,  0, 'P' },
+  {"config",            required_argument,  0, 'C' },
+  {"tiled",             required_argument,  0, '1' },
+  {"stl",               required_argument,  0, '2' },
+  {"tiled-poms",        required_argument,  0, '3' },
+  {"sliced-tiled-poms", required_argument,  0, '4' },
 
-  {"patch-snapshot",required_argument,  0, '6' },
+  {"patch-snapshot",      required_argument,  0, '6' },
   {"stl-snapshot",        required_argument,  0, '7' },
   {"tiled-snapshot",      required_argument,  0, '8' },
   {"tiled-slideshow-dir", required_argument,  0, '9' },
 
-  {"noise",         required_argument,  0, 'N' },
+  {"noise",       required_argument,  0, 'N' },
   {"viz",         required_argument,  0, '@' },
 
   {"seed",        required_argument,  0, 'S' },
@@ -210,6 +212,7 @@ static char long_options_descr[][128] = {
   "output Tiled JSON file",
   "output STL file (requires objMap)",
   "output Tiled POMS JSON file",
+  "output sliced Tiled POMS JSON file",
 
   "JSON patch snapshot file",
   "STL snapshot file",
@@ -359,6 +362,78 @@ int tiled_snapshot(POMS &poms, _opt_t &opt, int id) {
 // creates/overwrites ctx->tiled_snapshot_fn file
 //
 int rt_tiled_snapshot(g_ctx_t *ctx) {
+  int fd, r;
+  FILE *fp;
+  char fn_tmp[64];
+  std::string fn;
+
+  int64_t cell, rc;
+  int32_t p[3], rp[3];
+  POMS *poms;
+
+  poms = ctx->poms;
+
+  for (cell=0; cell<poms->m_quilt_cell_count; cell++) {
+    poms->cell2vec(p, cell, poms->m_quilt_size);
+    if ((p[0]  < poms->m_patch_region[0][0]) ||
+        (p[0] >= poms->m_patch_region[0][1]) ||
+        (p[1]  < poms->m_patch_region[1][0]) ||
+        (p[1] >= poms->m_patch_region[1][1]) ||
+        (p[2]  < poms->m_patch_region[2][0]) ||
+        (p[2] >= poms->m_patch_region[2][1])) {
+
+      if (poms->m_quilt_tile[cell] < 0) {
+        ctx->T.layers[0].data[cell] = 0;
+        ctx->T.layers[1].data[cell] = poms->m_tile_count;
+        continue;
+      }
+
+      ctx->T.layers[0].data[cell] = poms->m_quilt_tile[cell];
+      ctx->T.layers[1].data[cell] = 1;
+      continue;
+    }
+
+    rp[0] = p[0] - poms->m_patch_region[0][0];
+    rp[1] = p[1] - poms->m_patch_region[1][0];
+    rp[2] = p[2] - poms->m_patch_region[2][0];
+    rc = poms->vec2cell(rp);
+    if (rc<0) { continue; }
+
+    ctx->T.layers[0].data[cell] = poms->cellTile( poms->m_plane, rc, 0 );
+    ctx->T.layers[1].data[cell] = poms->cellSize( poms->m_plane, rc );
+
+  }
+
+  fn = ctx->tiled_snapshot_fn;
+  if (fn.size() == 0) { return -1; }
+
+  strncpy( fn_tmp, "snapshot.json.XXXXXX", 32 );
+
+  fd = mkstemp(fn_tmp);
+  if (fd<0) { return fd; }
+
+  fp = fdopen(fd, "w");
+  if (!fp) { return -1; }
+
+  r = exportTiledJSON( fp, ctx->T );
+  if (r<0) { return r; }
+
+  fclose(fp);
+  rename( fn_tmp, fn.c_str() );
+
+  return r;
+}
+
+//---
+
+// real time sliced Tiled snapshot (for visualization).
+//
+// layer 0 - grid tile, value 0 for indeterminite
+// layer 1 - cellsize
+//
+// creates/overwrites ctx->tiled_snapshot_fn file
+//
+int rt_sliced_tiled_snapshot(g_ctx_t *ctx, int32_t cols) {
   int fd, r;
   FILE *fp;
   char fn_tmp[64];
@@ -2576,6 +2651,16 @@ double window_alpha(_opt_t &opt) {
 }
 */
 
+///----
+// VIZUALIZATION begin
+///----
+//
+//  _   __________
+// | | / /  _/_  /
+// | |/ // /  / /_
+// |___/___/ /___/
+//
+
 int _update_viz_step( int64_t bms_step, _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
   int _r;
 
@@ -2633,7 +2718,7 @@ int _update_viz_begin( int64_t it, _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
   return 0;
 }
 
-int _update_viz_fin( _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
+int _update_viz_snapshots( _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
   int _r;
 
   if (ctx.tiled_snapshot_fn.size() > 0) {
@@ -2650,6 +2735,271 @@ int _update_viz_fin( _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
   return 0;
 }
 
+
+int _update_viz_stl_snapshot( _opt_t &opt, POMS &poms ) {
+  // need to load obj
+  //
+  if (opt.stl_snapshot_fn.size() > 0) {
+
+    if (poms.m_objMap.size() > 0) {
+      if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+        printf("# exporting to STL snapshot file '%s'\n", opt.stl_snapshot_fn.c_str());
+        fflush(stdout);
+      }
+
+      exportQuiltSTL(poms, opt.stl_snapshot_fn);
+    }
+    else {
+      if (poms.m_verbose >= POMS_VERBOSE_WARNING) {
+        printf("WARNING: snapshot STL '%s' file specified but no objMap detected, not writing\n", opt.stl_snapshot_fn.c_str());
+      }
+    }
+
+  }
+
+  return 0;
+}
+
+int _update_viz_stl( _opt_t &opt, POMS &poms ) {
+  // need to load obj
+  //
+  if (opt.stl_fn.size() > 0) {
+    if (poms.m_objMap.size() > 0) {
+      if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
+        printf("# exporting to STL file '%s'\n", opt.stl_fn.c_str());
+      }
+      exportQuiltSTL(poms, opt.stl_fn);
+    }
+    else {
+      if (poms.m_verbose >= POMS_VERBOSE_WARNING) {
+        printf("WARNING: STL '%s' file specified but no objMap detected, not writing\n", opt.stl_fn.c_str());
+      }
+    }
+
+  }
+
+  return 0;
+}
+
+
+int _update_viz_patch_snapshot( g_ctx_t &ctx ) {
+  int _r;
+  if (ctx.patch_snapshot_fn.size() > 0) {
+    _r = rt_patch_snapshot(&ctx,0);
+    if (_r<0) { printf("# failed to save final patch, got (%i)\n", _r); }
+
+    if (ctx.global_callback) { ctx.global_callback(); }
+  }
+  return 0;
+}
+
+
+
+int _update_viz_tiled_fin( _opt_t &opt, POMS &poms ) {
+  if (opt.tiled_fn.size() > 0) {
+    if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
+      printf("# exporting final Tiled JSON file '%s'\n", opt.tiled_fn.c_str());
+    }
+    poms.exportTiledJSON( opt.tiled_fn, opt.tiled_fmt_type, 1 );
+  }
+  return 0;
+}
+
+int _update_viz_tiled_intermediate( _opt_t &opt, POMS &poms ) {
+  if (opt.tiled_fn.size() > 0) {
+    if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
+      printf("# exporting intermediate Tiled JSON file '%s'\n", opt.tiled_fn.c_str());
+    }
+    poms.exportTiledJSON( opt.tiled_fn, opt.tiled_fmt_type, 1 );
+  }
+  return 0;
+}
+
+
+int _update_viz_block_snapshot( _opt_t &opt, POMS &poms, int64_t quilt_step ) {
+  char tmp_fn[128];
+  if (opt.poms_block_snapshot_fn.size() > 0) {
+    snprintf(tmp_fn, 127, "%s.it%i", opt.poms_block_snapshot_fn.c_str(), (int)quilt_step);
+    if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+      printf("## exporting block poms '%s'\n", tmp_fn);
+    }
+    poms.exportPOMSBlock(tmp_fn);
+  }
+  return 0;
+}
+
+
+//  _   __________
+// | | / /  _/_  /
+// | |/ // /  / /_
+// |___/___/ /___/
+//
+///----
+// VIZUALIZATION begin
+///----
+
+//-----
+// verbose print begin
+//-----
+//  _   _________  ___  ____  ________
+// | | / / __/ _ \/ _ )/ __ \/ __/ __/
+// | |/ / _// , _/ _  / /_/ /\ \/ _/
+// |___/___/_/|_/____/\____/___/___/
+//
+
+int _verbose_setup_quilt_patch_fail( POMS &poms, int fail_counter, int fail_counter_reset ) {
+  if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+    printf("# main: setupQuiltPatch failed, discarding region [%i:%i][%i:%i][%i:%i] (fail_counter:%i/%i)\n",
+        poms.m_patch_region[0][0], poms.m_patch_region[0][1],
+        poms.m_patch_region[1][0], poms.m_patch_region[1][1],
+        poms.m_patch_region[2][0], poms.m_patch_region[2][1],
+        (int)fail_counter, (int)fail_counter_reset);
+  }
+  return 0;
+}
+
+int _verbose_fin( POMS &poms, int quilting, int64_t quilt_step ) {
+  if (poms.m_verbose >= POMS_VERBOSE_ITER) {
+    printf("## FIN:%i quilt_step:%i quilt_cells_resolved:%i/%i\n",
+        (int)quilting,
+        (int)quilt_step,
+        (int)poms.quiltResolvedCount(), (int)poms.m_quilt_cell_count);
+  }
+  return 0;
+}
+
+int _verbose_end_step( POMS &poms, int ret ) {
+  int64_t _count=0;
+  if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+    if (ret==-3) {
+      printf("## SANITY? cell:%i, tile:%i, idir:%i, type: %i\n",
+          (int)poms.m_conflict_cell, (int)poms.m_conflict_tile, (int)poms.m_conflict_idir,
+          (int)poms.m_conflict_type);
+      printf("# EXPORTING DEBUG PATCH...\n");
+      _debug_export_patch(poms);
+      _debug_export_quilt(poms);
+    }
+    _count = poms.quiltResolvedCount();
+    printf("# got :%i, quilt cells resolved %i/%i(%f)\n", ret,
+        (int)_count, (int)poms.m_quilt_cell_count,
+        (double)_count / (double)poms.m_quilt_cell_count);
+  }
+
+  if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
+    poms.printDebug();
+    printf("------\n");
+  }
+  return ret;
+}
+
+int _verbose_quilt_save_begin( POMS &poms ) {
+  if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
+    poms.printDebugGrid();
+  }
+
+  if (poms.m_verbose >= POMS_VERBOSE_STEP) {
+    printf("## before save quilt: arc sanity: %i, ac4 consistency: %i, sanity quilt: %i\n",
+        poms.sanityArcConsistency(),
+        poms.AC4Consistency(),
+        poms.sanityQuilt());
+  }
+  return 0;
+}
+
+int _verbose_quilt_save_end( POMS &poms, int ret, int32_t *print_order ) {
+  int64_t _count=0;
+  if (poms.m_verbose >= POMS_VERBOSE_STEP) {
+    printf("## saving quilt patch [%i;%i][%i:%i][%i:%i]\n",
+          poms.m_patch_region[0][0], poms.m_patch_region[0][1],
+          poms.m_patch_region[1][0], poms.m_patch_region[1][1],
+          poms.m_patch_region[2][0], poms.m_patch_region[2][1]);
+  }
+
+  if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+    poms.printDebugQuiltGrid(print_order);
+    _count = poms.quiltResolvedCount();
+    printf("# got :%i, quilt cells resolved %i/%i(%f)\n", ret,
+        (int)_count, (int)poms.m_quilt_cell_count,
+        (double)_count / (double)poms.m_quilt_cell_count);
+  }
+  return 0;
+}
+
+int _verbose_erode_begin( POMS &poms ) {
+  if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+    printf("## REJECT quilt patch [%i;%i][%i:%i][%i:%i]\n",
+          poms.m_patch_region[0][0], poms.m_patch_region[0][1],
+          poms.m_patch_region[1][0], poms.m_patch_region[1][1],
+          poms.m_patch_region[2][0], poms.m_patch_region[2][1]);
+  }
+  return 0;
+}
+
+int _verbose_eroding( POMS &poms, double erode_p, double erode_p_s, double erode_p_e ) {
+  if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+    printf("# ERODING (erode_p:%f {%f,%f})\n", erode_p, erode_p_s, erode_p_e);
+  }
+  return 0;
+}
+
+int _verbose_quilt_step_start( POMS &poms, _opt_t &opt,
+                               int64_t quilt_step,
+                               double erode_p, double erode_p_s, double erode_p_e,
+                               int fail_counter, int fail_counter_reset ) {
+  if (poms.m_verbose >= POMS_VERBOSE_RUN) {
+    printf("#######################\n");
+    printf("# quilt step %i (%i/%i), patch [%i:%i,%i:%i,%i:%i] (block-choice:%s, patch-choice:%s) (erode_p:%f{%f:%f},fail_counter:%i/%i) "
+        "(tile-support-option:%i) (sanity:%i)\n",
+        (int)quilt_step, (int)poms.quiltResolvedCount(), (int)poms.m_quilt_cell_count,
+        poms.m_patch_region[0][0], poms.m_patch_region[0][1],
+        poms.m_patch_region[1][0], poms.m_patch_region[1][1],
+        poms.m_patch_region[2][0], poms.m_patch_region[2][1],
+        opt.block_choice_policy_str.c_str(),
+        opt.patch_choice_policy_str.c_str(),
+        erode_p, erode_p_s, erode_p_e,
+        (int)fail_counter, (int)fail_counter_reset,
+        poms.m_tile_support_option,
+        poms.sanityQuilt() );
+        //_block_choice_descr[ quilt_step%4 ].c_str());
+    printf("# bms: tile_choice_policy: %i, block_choice_policy: %i, block:[%i,%i,%i], soften:[%i,%i,%i]\n",
+        (int)poms.m_tile_choice_policy,
+        (int)poms.m_block_choice_policy,
+        (int)poms.m_block_size[0], (int)poms.m_block_size[1], (int)poms.m_block_size[2],
+        (int)poms.m_soften_size[0], (int)poms.m_soften_size[1], (int)poms.m_soften_size[2]);
+    printf("# block_choice_policy: %i\n", poms.m_block_choice_policy);
+    printf("# distance_modifier_opt: %i\n", poms.m_distance_modifier_opt);
+
+    printf("\n\n");
+    //fflush(stdout);
+  }
+  return 0;
+}
+
+int _verbose_quilt_step( POMS &poms, int ret, int64_t quilt_step, int fail_counter, int ac4init_fail_indicator, int erode_indicator ) {
+  int64_t _count=0;
+  if (poms.m_verbose >= POMS_VERBOSE_ITER) {
+    _count = poms.quiltResolvedCount();
+    printf("# quilt_step:%i got:%i fail_counter:%i ac4init_fail:%i erode:%i quilt_cells_resolved:%i/%i(%f)\n",
+        (int)quilt_step,
+        ret,
+        (int)fail_counter,
+        (int)ac4init_fail_indicator,
+        (int)erode_indicator,
+        (int)_count, (int)poms.m_quilt_cell_count,
+        (double)_count / (double)poms.m_quilt_cell_count);
+  }
+  return 0;
+}
+
+
+//  _   _________  ___  ____  ________
+// | | / / __/ _ \/ _ )/ __ \/ __/ __/
+// | |/ / _// , _/ _  / /_/ /\ \/ _/
+// |___/___/_/|_/____/\____/___/___/
+//
+//-----
+// verbose print end
+//-----
 
 
 //---
@@ -2832,6 +3182,10 @@ int poms_main(int argc, char **argv) {
             opt.retry_max = atoi(tok[1].c_str());
             poms.m_retry_max = opt.retry_max;
           }
+        }
+
+        else if (opt_str.find("flat_tileset=", 0)==0) {
+          opt.tiled_fmt_type = 2;
         }
 
         else if (opt_str.find("noise-test", 0)==0) {
@@ -3091,6 +3445,11 @@ int poms_main(int argc, char **argv) {
         break;
       case '3':
         opt.tiled_fn = optarg;
+        opt.tiled_fmt_type = 1;
+        break;
+
+      case '4':
+        opt.sliced_tiled_fn = optarg;
         opt.tiled_fmt_type = 1;
         break;
 
@@ -3470,6 +3829,8 @@ int poms_main(int argc, char **argv) {
       poms.m_patch_region[xyz][1] = quilt_s[xyz] + poms.m_size[xyz];
     }
 
+    _verbose_quilt_step_start( poms, opt, quilt_step, erode_p, erode_p_s, erode_p_e, fail_counter, fail_counter_reset );
+    /*
     if (poms.m_verbose >= POMS_VERBOSE_RUN) {
       printf("#######################\n");
       printf("# quilt step %i (%i/%i), patch [%i:%i,%i:%i,%i:%i] (block-choice:%s, patch-choice:%s) (erode_p:%f{%f:%f},fail_counter:%i/%i) "
@@ -3496,9 +3857,12 @@ int poms_main(int argc, char **argv) {
       printf("\n\n");
       //fflush(stdout);
     }
+    */
 
     // Take POMS snapshot so we can debug this block
     //
+    _update_viz_block_snapshot( opt, poms, quilt_step );
+    /*
     if (opt.poms_block_snapshot_fn.size() > 0) {
       snprintf(tmp_fn, 127, "%s.it%i", opt.poms_block_snapshot_fn.c_str(), (int)quilt_step);
       if (poms.m_verbose >= POMS_VERBOSE_RUN) {
@@ -3506,6 +3870,7 @@ int poms_main(int argc, char **argv) {
       }
       poms.exportPOMSBlock(tmp_fn);
     }
+    */
 
     ac4init_fail_indicator = 0;
     erode_indicator = 0;
@@ -3516,9 +3881,10 @@ int poms_main(int argc, char **argv) {
     if (r<0) {
 
       ac4init_fail_indicator = 1;
-
       fail_counter++;
 
+      _verbose_setup_quilt_patch_fail( poms, fail_counter, fail_counter_reset );
+      /*
       if (poms.m_verbose >= POMS_VERBOSE_RUN) {
         printf("# main: setupQuiltPatch failed, discarding region [%i:%i][%i:%i][%i:%i] (fail_counter:%i/%i)\n",
             poms.m_patch_region[0][0], poms.m_patch_region[0][1],
@@ -3526,9 +3892,10 @@ int poms_main(int argc, char **argv) {
             poms.m_patch_region[2][0], poms.m_patch_region[2][1],
             (int)fail_counter, (int)fail_counter_reset);
       }
+      */
 
-      //_erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])), erode_p );
-      //_erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])), 0.5);
+      // REVERSION
+      //
       _remove_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])), 1 );
 
       if (fail_counter >= fail_counter_reset) {
@@ -3537,9 +3904,12 @@ int poms_main(int argc, char **argv) {
 
         fail_counter = 0;
 
+        _verbose_eroding( poms, erode_p, erode_p_s, erode_p_e );
+        /*
         if (poms.m_verbose >= POMS_VERBOSE_RUN) {
           printf("# ERODING (erode_p:%f {%f,%f})\n", erode_p, erode_p_s, erode_p_s);
         }
+        */
 
         for (ii=0; ii<1; ii++) {
           _erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])) );
@@ -3548,6 +3918,8 @@ int poms_main(int argc, char **argv) {
 
       }
 
+      _update_viz_snapshots( opt, poms, g_ctx );
+      /*
       if (g_ctx.tiled_snapshot_fn.size() > 0) {
         _r = rt_tiled_snapshot(&g_ctx);
         if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
@@ -3561,7 +3933,10 @@ int poms_main(int argc, char **argv) {
 
         if (g_ctx.global_callback) { g_ctx.global_callback(); }
       }
+      */
 
+      _verbose_quilt_step( poms, ret, quilt_step, fail_counter, ac4init_fail_indicator, erode_indicator );
+      /*
       if (poms.m_verbose >= POMS_VERBOSE_ITER) {
         _count = poms.quiltResolvedCount();
         printf("# quilt_step:%i got:%i fail_counter:%i ac4init_fail:%i erode:%i quilt_cells_resolved:%i/%i(%f)\n",
@@ -3573,6 +3948,7 @@ int poms_main(int argc, char **argv) {
             (int)_count, (int)poms.m_quilt_cell_count,
             (double)_count / (double)poms.m_quilt_cell_count);
       }
+      */
 
       continue;
     }
@@ -3600,7 +3976,6 @@ int poms_main(int argc, char **argv) {
 
       if (poms.m_verbose >= POMS_VERBOSE_RUN) {
         printf("# bms, n_it: %i, max_bms_step:%i\n", (int)n_it, (int)max_bms_step);
-        fflush(stdout);
       }
 
       for (it=0; (it<n_it) && (ret>=0); it++) {
@@ -3616,10 +3991,9 @@ int poms_main(int argc, char **argv) {
 
         _update_viz_begin( it, opt, poms, g_ctx );
 
+        // run bms on block until max step, resolved or contradiction
+        //
         for (bms_step=0; bms_step<max_bms_step; bms_step++) {
-
-          // run bms on block
-          //
           r = poms.BMSStep();
           if (r<=0) { break; }
           _update_viz_step( bms_step, opt, poms, g_ctx );
@@ -3645,15 +4019,12 @@ int poms_main(int argc, char **argv) {
       }
 
     }
-    else {
 
-      // init fully resovled grid, fall through below and cleanup
-      //
-      ret = 0;
+    // BMSInit call fully resovled grid, fall through below and cleanup
+    //
+    else { ret = 0; }
 
-    }
-
-    _update_viz_fin( opt, poms, g_ctx );
+    _update_viz_snapshots( opt, poms, g_ctx );
 
     //--------------------
     //    ___  __  _______
@@ -3664,6 +4035,8 @@ int poms_main(int argc, char **argv) {
     //--------------------
 
 
+    _verbose_end_step( poms, ret );
+    /*
     if (poms.m_verbose >= POMS_VERBOSE_RUN) {
       if (ret==-3) {
         printf("## SANITY? cell:%i, tile:%i, idir:%i, type: %i\n",
@@ -3683,11 +4056,14 @@ int poms_main(int argc, char **argv) {
       poms.printDebug();
       printf("------\n");
     }
+    */
 
     erode_indicator=0;
 
     if (ret == 0) {
 
+      _verbose_quilt_save_begin( poms );
+      /*
       if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
         poms.printDebugGrid();
       }
@@ -3698,35 +4074,18 @@ int poms_main(int argc, char **argv) {
             poms.AC4Consistency(),
             poms.sanityQuilt());
       }
+      */
 
       r = poms.saveQuiltPatchRegion();
       if (r<0) { return err_and_return("saveQuiltPatchRegion error"); }
 
+      _verbose_quilt_save_end( poms, ret, print_order );
+      /*
       if (poms.m_verbose >= POMS_VERBOSE_STEP) {
         printf("## saving quilt patch [%i;%i][%i:%i][%i:%i]\n",
               poms.m_patch_region[0][0], poms.m_patch_region[0][1],
               poms.m_patch_region[1][0], poms.m_patch_region[1][1],
               poms.m_patch_region[2][0], poms.m_patch_region[2][1]);
-      }
-
-      // need to load obj
-      //
-      if (opt.stl_snapshot_fn.size() > 0) {
-
-        if (poms.m_objMap.size() > 0) {
-          if (poms.m_verbose >= POMS_VERBOSE_RUN) {
-            printf("# exporting to STL snapshot file '%s'\n", opt.stl_snapshot_fn.c_str());
-            fflush(stdout);
-          }
-
-          exportQuiltSTL(poms, opt.stl_snapshot_fn);
-        }
-        else {
-          if (poms.m_verbose >= POMS_VERBOSE_WARNING) {
-            printf("WARNING: snapshot STL '%s' file specified but no objMap detected, not writing\n", opt.stl_snapshot_fn.c_str());
-          }
-        }
-
       }
 
       if (poms.m_verbose >= POMS_VERBOSE_RUN) {
@@ -3736,16 +4095,21 @@ int poms_main(int argc, char **argv) {
             (int)_count, (int)poms.m_quilt_cell_count,
             (double)_count / (double)poms.m_quilt_cell_count);
       }
+      */
 
+      _update_viz_stl_snapshot(opt, poms);
     }
     else {
 
+      _verbose_erode_begin( poms );
+      /*
       if (poms.m_verbose >= POMS_VERBOSE_RUN) {
         printf("## REJECT quilt patch [%i;%i][%i:%i][%i:%i]\n",
               poms.m_patch_region[0][0], poms.m_patch_region[0][1],
               poms.m_patch_region[1][0], poms.m_patch_region[1][1],
               poms.m_patch_region[2][0], poms.m_patch_region[2][1]);
       }
+      */
 
       fail_counter++;
       if (fail_counter >= fail_counter_reset) {
@@ -3753,9 +4117,12 @@ int poms_main(int argc, char **argv) {
 
         erode_indicator=1;
 
+        _verbose_eroding( poms, erode_p, erode_p_s, erode_p_e );
+        /*
         if (poms.m_verbose >= POMS_VERBOSE_RUN) {
           printf("# ERODING {%f}\n", erode_p);
         }
+        */
 
         for (ii=0; ii<1; ii++) {
           _erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])) );
@@ -3766,6 +4133,8 @@ int poms_main(int argc, char **argv) {
 
     }
 
+    _verbose_quilt_step( poms, ret, quilt_step, fail_counter, ac4init_fail_indicator, erode_indicator );
+    /*
     if (poms.m_verbose >= POMS_VERBOSE_ITER) {
       _count = poms.quiltResolvedCount();
       printf("# quilt_step:%i got:%i fail_counter:%i ac4init_fail:%i erode:%i quilt_cells_resolved:%i/%i(%f)\n",
@@ -3777,6 +4146,7 @@ int poms_main(int argc, char **argv) {
           (int)_count, (int)poms.m_quilt_cell_count,
           (double)_count / (double)poms.m_quilt_cell_count);
     }
+    */
 
 
 
@@ -3793,13 +4163,18 @@ int poms_main(int argc, char **argv) {
     //----
     //----
 
+    _update_viz_tiled_intermediate( opt, poms );
+    /*
     if (opt.tiled_fn.size() > 0) {
       if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
         printf("# exporting intermediate Tiled JSON file '%s'\n", opt.tiled_fn.c_str());
       }
       poms.exportTiledJSON( opt.tiled_fn, opt.tiled_fmt_type, 1 );
     }
+    */
 
+    _update_viz_stl( opt, poms );
+    /*
     // need to load obj
     //
     if (opt.stl_fn.size() > 0) {
@@ -3816,57 +4191,29 @@ int poms_main(int argc, char **argv) {
       }
 
     }
+    */
 
 
   }
 
+  _verbose_fin(poms, quilting, quilt_step );
+  /*
   if (poms.m_verbose >= POMS_VERBOSE_ITER) {
     printf("## FIN:%i quilt_step:%i quilt_cells_resolved:%i/%i\n",
         (int)quilting,
         (int)quilt_step,
         (int)poms.quiltResolvedCount(), (int)poms.m_quilt_cell_count);
   }
+  */
 
   if (poms.m_verbose >= POMS_VERBOSE_RUN) {
     printf("## PROF\n");
     poms._prof_print();
   }
 
-
-  // need to load obj
-  //
-  if (opt.stl_fn.size() > 0) {
-    if (poms.m_objMap.size() > 0) {
-      if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
-        printf("# exporting to STL file '%s' (x)\n", opt.stl_fn.c_str());
-      }
-      exportQuiltSTL(poms, opt.stl_fn);
-    }
-    else {
-      if (poms.m_verbose >= POMS_VERBOSE_WARNING) {
-        printf("WARNING: STL '%s' file specified but no objMap detected, not writing\n", opt.stl_fn.c_str());
-      }
-    }
-
-  }
-
-  if (g_ctx.patch_snapshot_fn.size() > 0) {
-    _r = rt_patch_snapshot(&g_ctx,0);
-    if (_r<0) { printf("# failed to save final patch, got (%i)\n", _r); }
-
-    if (g_ctx.global_callback) { g_ctx.global_callback(); }
-  }
-
-
-
-  if (opt.tiled_fn.size() > 0) {
-    if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
-      printf("# exporting final Tiled JSON file '%s'\n", opt.tiled_fn.c_str());
-    }
-    poms.exportTiledJSON( opt.tiled_fn, opt.tiled_fmt_type, 1 );
-  }
-
-
+  _update_viz_stl( opt, poms );
+  _update_viz_patch_snapshot( g_ctx );
+  _update_viz_tiled_fin( opt, poms );
 
   return 0;
 }

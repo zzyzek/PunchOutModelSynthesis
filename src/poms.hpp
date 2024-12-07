@@ -27,7 +27,7 @@
 
 #include "ac4_tier.hpp"
 
-#define POMS_VERSION "0.23.0"
+#define POMS_VERSION "0.24.0"
 
 #define POMS_VERBOSE_ERROR      -2
 #define POMS_VERBOSE_WARNING    -1
@@ -1436,6 +1436,8 @@ class POMS {
     std::vector< std::string > m_state_descr;
 
     tileset_ctx_t m_tileset_ctx;
+    tileset_ctx_t m_flat_tileset_ctx;
+
     //int32_t     m_ac4_opt;
     int32_t     m_distance_modifier_opt;
 
