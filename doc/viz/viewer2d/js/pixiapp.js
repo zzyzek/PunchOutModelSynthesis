@@ -5,7 +5,7 @@
 // to this file.
 //
 // You should have received a copy of the CC0 legalcode along with this
-// work.  If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
+// work. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //
 
 // a quick note on control flow:
@@ -13,9 +13,7 @@
 // * `init()` is called to initialize the websocket connection
 //   (`init_ws()`), create the pixi application
 //   and setup the keyboard bindings
-// * `ws_message(...)` receives the ws message which is
-//   assumed to be a Tiled JSON tilemap. On successful
-//   receipt/parse, `update_pixi_tilemap(...)` is called
+// * `poll_tiled()` polls for the snapshot file to load
 // * `update_pixi_tilemap(...)` does the main draw:
 //   - if the (implied) url for the tile set has changed,
 //     reload it and reconstruct the atlas
@@ -41,6 +39,15 @@
 // Arrow keys   - up down left right
 // shift+arrow  - zoom in and out
 //
+//
+// run-time options:
+//
+// < > . /  - viz mode (simple, fog, ?) (default simple)
+// f F      - turn on/off adaptive fog (default on)
+// [ {      - decrease fog exponent (default 3, min 1, max 5)
+// ] }      - incrase fog exponent (default 3, min 1, max 5)
+// q - _    - decrease zoom amount
+// e = +    - increase zoom amount
 
 
 // Note that Tiled does not respect tile ids below 1,
@@ -128,6 +135,9 @@ var g_tile_viewer_info = {
 
   "ready": false,
   "resize_to_fit": true,
+
+  "adaptive_fog": true,
+  "fog_exponent" : 3,
 
   "socket": {}
 };
@@ -419,6 +429,29 @@ function update_pixi_tilemap(tiled_data) {
     resize_pixi_tilemap(tiled_size);
   }
 
+  let fog_max = max_tile-1;
+  let adaptive_fog_opt = g_tile_viewer_info.adaptive_fog;
+
+  if (fog_max < 1) { fog_max = 1; }
+
+  if (adaptive_fog_opt) {
+    fog_max = 1;
+    for (let h=0; h<cur_size[1]; h++) {
+      for (let w=0; w<cur_size[0]; w++) {
+        let idx = w + (h*cur_size[0]);
+        if (idx >= tm_gr.length) { continue; }
+        if ( (typeof fog_gr !== "undefined") &&
+             (idx < fog_gr.length) &&
+             (fog_gr[idx] > 0) ) {
+
+          if (fog_max < fog_gr[idx]) {
+            fog_max = fog_gr[idx];
+          }
+        }
+      }
+    }
+  }
+
   for (let h=0; h<cur_size[1]; h++) {
     for (let w=0; w<cur_size[0]; w++) {
 
@@ -442,8 +475,9 @@ function update_pixi_tilemap(tiled_data) {
       if ( (typeof fog_gr !== "undefined") &&
            (idx < fog_gr.length) &&
            (fog_gr[idx] > 0) ) {
-        let a = 1.0 - ((fog_gr[idx] - 1) / (max_tile-1) );
-        a = a*a*a;
+
+        let a = 1.0 - ((fog_gr[idx] - 1) / (fog_max) );
+        a = Math.pow( a, g_tile_viewer_info.fog_exponent );
         sprite.alpha = a;
       }
 
@@ -649,6 +683,26 @@ function _keydown(ev) {
     let _colora = g_tile_viewer_info.highlight_mode_color;
     let _renderer = g_tile_viewer_info.pixi.app.renderer;
     _renderer.background.color = _colora[ _mode ];
+  }
+
+  else if ((ev.key == '[') ||
+           (ev.key == '{')) {
+    g_tile_viewer_info.fog_exponent -= 1;
+    if (g_tile_viewer_info.fog_exponent < 1) {
+      g_tile_viewer_info.fog_exponent = 1;
+    }
+  }
+  else if ((ev.key == ']') ||
+           (ev.key == '}')) {
+    g_tile_viewer_info.fog_exponent += 1;
+    if (g_tile_viewer_info.fog_exponent > 5) {
+      g_tile_viewer_info.fog_exponent = 5;
+    }
+  }
+
+  else if ((ev.key == 'f') ||
+           (ev.key == 'F')) {
+    g_tile_viewer_info.adaptive_fog = !g_tile_viewer_info.adaptive_fog;
   }
 
   else {

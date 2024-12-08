@@ -28,7 +28,7 @@ Run `poms` with the `snapshot` setting, pointing the `snapshot.json` POMS file
 in the `data/` directory:
 
 ```
-$ poms ... -8 $V2DLOC/data/snapshot.json ...
+$ poms ... -8 ${viz2d_dir}/data/snapshot.json ...
 ```
 
 Description

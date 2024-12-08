@@ -536,6 +536,7 @@ int POMS::loadJSONString(std::string &json_buf) {
   const char *name_path[] = {"name", NULL};
   const char *weight_path[] = {"weight", NULL};
   const char *tile_group_path[] = {"tileGroup", NULL};
+  const char *tile_flat_map_path[] = {"flatMap", NULL};
   const char *seed_path[] = {"seed", NULL};
   const char *constraint_path[] = {"constraint", NULL};
   const char *boundaryCondition_path[] = {"boundaryCondition", NULL};
@@ -578,6 +579,7 @@ int POMS::loadJSONString(std::string &json_buf) {
   m_tile_name.clear();
   m_tile_weight.clear();
   m_tile_group.clear();
+  m_tile_flat_map.clear();
 
   //--
   // size
@@ -626,6 +628,7 @@ int POMS::loadJSONString(std::string &json_buf) {
     m_tile_name.push_back( _s );
     m_tile_weight.push_back( 1.0 );
     m_tile_group.push_back( 0 );
+    m_tile_flat_map.push_back( 0 );
   }
   computeTileCDF();
   m_tile_count = m_tile_name.size();
@@ -696,11 +699,23 @@ int POMS::loadJSONString(std::string &json_buf) {
     computeTileCDF();
   }
 
+  //--
+  // tile flat map
+  //
+
+  vp = yajl_tree_get( root_node, tile_flat_map_path, yajl_t_array );
+  if (vp) {
+    for (i=0; i<vp->u.array.len; i++) {
+      d = YAJL_GET_INTEGER(vp->u.array.values[i]);
+      if (i < m_tile_flat_map.size()) {
+        m_tile_flat_map[i] = d;
+      }
+    }
+  }
 
   //--
   // seed
   //
-
 
   vp = yajl_tree_get( root_node, seed_path, yajl_t_number );
   if (vp) {
@@ -993,6 +1008,7 @@ int POMS::loadPOMS(POMS &src_poms) {
 
   m_tile_weight = src_poms.m_tile_weight;
   m_tile_group  = src_poms.m_tile_group;
+  m_tile_flat_map = src_poms.m_tile_flat_map;
   m_tile_cdf    = src_poms.m_tile_cdf;
 
   m_tileAdj     = src_poms.m_tileAdj;

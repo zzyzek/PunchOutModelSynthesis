@@ -1191,6 +1191,7 @@ class POMS {
     std::vector< double >       m_tile_weight;
 
     std::vector< int32_t >      m_tile_group;
+    std::vector< int32_t >      m_tile_flat_map;
 
     //---
 

@@ -122,10 +122,10 @@ typedef struct _opt_type {
   std::string gnuplot_fn;
   std::string cfg_fn;
   std::string tiled_fn;
-  std::string sliced_tiled_fn;
   std::string stl_fn;
   std::string tiled_slideshow_dir;
   std::string tiled_snapshot_fn;
+  //std::string sliced_tiled_snapshot_fn;
 
   std::string poms_block_snapshot_fn;
 
@@ -177,7 +177,8 @@ static struct option long_options[] = {
   {"tiled",             required_argument,  0, '1' },
   {"stl",               required_argument,  0, '2' },
   {"tiled-poms",        required_argument,  0, '3' },
-  {"sliced-tiled-poms", required_argument,  0, '4' },
+
+  {"sliced-tiled-snapshot", required_argument,  0, '5' },
 
   {"patch-snapshot",      required_argument,  0, '6' },
   {"stl-snapshot",        required_argument,  0, '7' },
@@ -212,7 +213,8 @@ static char long_options_descr[][128] = {
   "output Tiled JSON file",
   "output STL file (requires objMap)",
   "output Tiled POMS JSON file",
-  "output sliced Tiled POMS JSON file",
+
+  "output sliced Tiled snapshot JSON file",
 
   "JSON patch snapshot file",
   "STL snapshot file",
@@ -433,7 +435,7 @@ int rt_tiled_snapshot(g_ctx_t *ctx) {
 //
 // creates/overwrites ctx->tiled_snapshot_fn file
 //
-int rt_sliced_tiled_snapshot(g_ctx_t *ctx, int32_t cols) {
+int rt_sliced_tiled_snapshot(g_ctx_t *ctx) {
   int fd, r;
   FILE *fp;
   char fn_tmp[64];
@@ -443,10 +445,51 @@ int rt_sliced_tiled_snapshot(g_ctx_t *ctx, int32_t cols) {
   int32_t p[3], rp[3];
   POMS *poms;
 
+  int64_t _W=1, _H=1, _D=1,
+          tiled_cell=0;
+  int32_t cell_val=0;
+
+  int32_t q_col = 1,
+          q_row = 1,
+          q_frame_x=0,
+          q_frame_y=0;
+
   poms = ctx->poms;
 
+  _W = poms->m_quilt_size[0];
+  _H = poms->m_quilt_size[1];
+  _D = poms->m_quilt_size[2];
+
+  q_col = ctx->T.width / _W;
+  q_row = ctx->T.height / _H;
+
+  //WIP
+  //DEBUG
+  //DEBUG
+  //DEBUG
+  printf("DEBUG_CELL_SIZE: (patch[%i:%i,%i,%i");
+  poms->printDebugCellSize();
+
+  // we're going to have to worder about order, but for now we
+  // can assume standard order (x,y,z)
+  //
   for (cell=0; cell<poms->m_quilt_cell_count; cell++) {
     poms->cell2vec(p, cell, poms->m_quilt_size);
+
+    //WIP
+    q_frame_y = p[2] / q_col;
+    q_frame_x = p[2] - (q_frame_y * q_col);
+
+    tiled_cell = (q_frame_y * (ctx->T.width) * _H) + (q_frame_x * _W);
+    tiled_cell += (p[1] * (ctx->T.width)) + p[0];
+
+    if ((tiled_cell < 0) ||
+        (tiled_cell >= ((ctx->T.width)*(ctx->T.height)))) {
+      printf("ERROR! rt_sliced_tiled_snapshot tiled_cell:%i out of bounds (%i)\n",
+          (int)tiled_cell, (int)((ctx->T.width)*(ctx->T.height)));
+      continue;
+    }
+
     if ((p[0]  < poms->m_patch_region[0][0]) ||
         (p[0] >= poms->m_patch_region[0][1]) ||
         (p[1]  < poms->m_patch_region[1][0]) ||
@@ -455,13 +498,13 @@ int rt_sliced_tiled_snapshot(g_ctx_t *ctx, int32_t cols) {
         (p[2] >= poms->m_patch_region[2][1])) {
 
       if (poms->m_quilt_tile[cell] < 0) {
-        ctx->T.layers[0].data[cell] = 0;
-        ctx->T.layers[1].data[cell] = poms->m_tile_count;
+        ctx->T.layers[0].data[tiled_cell] = 0;
+        ctx->T.layers[1].data[tiled_cell] = poms->m_tile_count;
         continue;
       }
 
-      ctx->T.layers[0].data[cell] = poms->m_quilt_tile[cell];
-      ctx->T.layers[1].data[cell] = 1;
+      ctx->T.layers[0].data[tiled_cell] = poms->m_quilt_tile[cell];
+      ctx->T.layers[1].data[tiled_cell] = 1;
       continue;
     }
 
@@ -471,12 +514,12 @@ int rt_sliced_tiled_snapshot(g_ctx_t *ctx, int32_t cols) {
     rc = poms->vec2cell(rp);
     if (rc<0) { continue; }
 
-    ctx->T.layers[0].data[cell] = poms->cellTile( poms->m_plane, rc, 0 );
-    ctx->T.layers[1].data[cell] = poms->cellSize( poms->m_plane, rc );
+    ctx->T.layers[0].data[tiled_cell] = poms->cellTile( poms->m_plane, rc, 0 );
+    ctx->T.layers[1].data[tiled_cell] = poms->cellSize( poms->m_plane, rc );
 
   }
 
-  fn = ctx->tiled_snapshot_fn;
+  fn = ctx->sliced_tiled_snapshot_fn;
   if (fn.size() == 0) { return -1; }
 
   strncpy( fn_tmp, "snapshot.json.XXXXXX", 32 );
@@ -2671,11 +2714,18 @@ static int _update_viz_step( int64_t bms_step, _opt_t &opt, POMS &poms, g_ctx_t 
       tiled_slideshow(ctx, opt, ctx.m_slideshow_id);
       ctx.m_slideshow_id++;
     }
+
     if (ctx.tiled_snapshot_fn.size() > 0) {
       _r = rt_tiled_snapshot(&ctx);
       if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
       if (ctx.global_callback) { ctx.global_callback(); }
     }
+    else if (ctx.sliced_tiled_snapshot_fn.size() > 0) {
+      _r = rt_sliced_tiled_snapshot(&ctx);
+      if (_r<0) { printf("# failed to save sliced snapshot, got (%i)\n", _r); }
+      if (ctx.global_callback) { ctx.global_callback(); }
+    }
+
     if (ctx.patch_snapshot_fn.size() > 0) {
       _r = rt_patch_snapshot(&ctx,1);
       if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
@@ -2728,6 +2778,13 @@ static int _update_viz_snapshots( _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
     if (_r<0) { printf("# failed to save snapshot, got (%i)\n", _r); }
     if (ctx.global_callback) { ctx.global_callback(); }
   }
+  else if (ctx.sliced_tiled_snapshot_fn.size() > 0) {
+    _r = rt_sliced_tiled_snapshot(&ctx);
+    if (_r<0) { printf("# failed to save sliced snapshot, got (%i)\n", _r); }
+    if (ctx.global_callback) { ctx.global_callback(); }
+  }
+
+
   if (ctx.patch_snapshot_fn.size() > 0) {
     _r = rt_patch_snapshot(&ctx,1);
     if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
@@ -3126,7 +3183,7 @@ int poms_main(int argc, char **argv) {
   //opt.patch_choice_policy_str = "rand";
   opt.patch_choice_policy_str = "pending";
 
-  while (ch = getopt_long(argc, argv, "hvV:s:q:@:C:b:B:1:2:3:6:7:8:9:S:J:w:E:P:O:N:", long_options, &opt_idx)) {
+  while (ch = getopt_long(argc, argv, "hvV:s:q:@:C:b:B:1:2:3:5:6:7:8:9:S:J:w:E:P:O:N:", long_options, &opt_idx)) {
     if (ch<0) { break; }
 
     switch (ch) {
@@ -3487,9 +3544,9 @@ int poms_main(int argc, char **argv) {
         opt.tiled_fmt_type = 1;
         break;
 
-      case '4':
-        opt.sliced_tiled_fn = optarg;
-        opt.tiled_fmt_type = 1;
+      case '5':
+        g_ctx.sliced_tiled_snapshot_fn = optarg;
+        if (opt.viz_step <= 0) { opt.viz_step = 100; }
         break;
 
       case '6':
@@ -3742,10 +3799,10 @@ int poms_main(int argc, char **argv) {
   //---
   //---
 
-  g_ctx.poms = &poms;
-  g_ctx.m_iter=-1;
+  g_ctx.poms    = &poms;
+  g_ctx.m_iter  = -1;
   g_ctx.m_alpha = 2;
-  g_ctx.m_beta = 1.0;
+  g_ctx.m_beta  = 1.0;
 
 
   if (g_ctx.tiled_snapshot_fn.size() > 0) {
@@ -3760,6 +3817,84 @@ int poms_main(int argc, char **argv) {
     g_ctx.T.tilesets[0].tilewidth = poms.m_tileset_ctx.tilewidth;
     g_ctx.T.tilesets[0].tilecount = poms.m_tileset_ctx.tilecount;
     g_ctx.T.tilesets[0].image = poms.m_tileset_ctx.image;
+
+    g_ctx.T.layers[0].height = g_ctx.T.height;
+    g_ctx.T.layers[0].width = g_ctx.T.width;
+    g_ctx.T.layers[0].data.resize( g_ctx.T.width * g_ctx.T.height );
+
+    g_ctx.T.layers[1].height = g_ctx.T.height;
+    g_ctx.T.layers[1].width = g_ctx.T.width;
+    g_ctx.T.layers[1].data.resize( g_ctx.T.width * g_ctx.T.height );
+    g_ctx.T.layers[1].name = "cellSize";
+    g_ctx.T.layers[1].visible = false;
+
+    g_ctx.m_conflict_grid.resize( poms.m_quilt_cell_count, 0 );
+  }
+
+  // sliced tiled snapshot setup
+  //
+  else if (g_ctx.sliced_tiled_snapshot_fn.size() > 0) {
+    g_ctx.T.tilesets.resize(1);
+    g_ctx.T.layers.resize(2);
+
+    int64_t _W = poms.m_quilt_size[0],
+            _H = poms.m_quilt_size[1],
+            _D = poms.m_quilt_size[2];
+    int64_t n_cell      = _W*_H*_D;
+    double  side_cell_d = sqrt( (double)n_cell );
+    int64_t side_cell_i = (int64_t)side_cell_d;
+
+    int64_t cell_col = 1,
+            cell_row = 1;
+
+    int64_t q_col = (int64_t)(side_cell_i / (double)_W);
+    int64_t q_row = (int64_t)(side_cell_i / (double)_H);
+
+    if (q_col == 0) { q_col = 1; }
+    if (q_row == 0) { q_row = 1; }
+    while ( (q_col*q_row) < _D ) { q_row++; }
+
+    int64_t cell_width  = q_col*_W;
+    int64_t cell_height = q_row*_H;
+
+    //if (poms.m_verbose >= POMS_VERBOSE_DEBUG) {
+      printf("# sliced snapshot: fn:'%s', (fmt:%i), whd{%i,%i,%i} n_cell:%i, side_cell{%f,%i}, q_{col,row}{%i,%i} cell_{w,h}{%i,%i}\n",
+          g_ctx.sliced_tiled_snapshot_fn.c_str(),
+          opt.tiled_fmt_type,
+          (int)_W, (int)_H, (int)_D,
+          (int)n_cell,
+          side_cell_d, (int)side_cell_i,
+          (int)q_col, (int)q_row,
+          (int)cell_width, (int)cell_height);
+    //}
+
+    g_ctx.T.width   = cell_width;
+    g_ctx.T.height  = cell_height;
+
+    // use flat tile representation
+    //
+    if (opt.tiled_fmt_type == 2) {
+      g_ctx.T.tileheight  = poms.m_flat_tileset_ctx.tileheight;
+      g_ctx.T.tilewidth   = poms.m_flat_tileset_ctx.tilewidth;
+
+      g_ctx.T.tilesets[0].tileheight  = poms.m_flat_tileset_ctx.tileheight;
+      g_ctx.T.tilesets[0].tilewidth   = poms.m_flat_tileset_ctx.tilewidth;
+      g_ctx.T.tilesets[0].tilecount   = poms.m_flat_tileset_ctx.tilecount;
+      g_ctx.T.tilesets[0].image       = poms.m_flat_tileset_ctx.image;
+    }
+
+    // unflattened represenatation
+    //
+    else {
+
+      g_ctx.T.tileheight = poms.m_tileset_ctx.tileheight;
+      g_ctx.T.tilewidth = poms.m_tileset_ctx.tilewidth;
+
+      g_ctx.T.tilesets[0].tileheight = poms.m_tileset_ctx.tileheight;
+      g_ctx.T.tilesets[0].tilewidth = poms.m_tileset_ctx.tilewidth;
+      g_ctx.T.tilesets[0].tilecount = poms.m_tileset_ctx.tilecount;
+      g_ctx.T.tilesets[0].image = poms.m_tileset_ctx.image;
+    }
 
     g_ctx.T.layers[0].height = g_ctx.T.height;
     g_ctx.T.layers[0].width = g_ctx.T.width;
@@ -3955,6 +4090,7 @@ int poms_main(int argc, char **argv) {
         //
         _update_viz_step( bms_step, opt, poms, g_ctx );
         _verbose_block_solver_iter_end( poms, it, n_it );
+
       }
 
     }

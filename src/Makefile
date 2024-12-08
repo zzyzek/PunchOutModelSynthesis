@@ -75,7 +75,7 @@ $(DEBUGLIBDIR)/%.c.o: %.c %.h
 .PHONY: clean poms.debug poms.test poms.le debug test le mcmc poms.mcmc bms poms.bms
 
 clean:
-	@rm -f $(OBJS) $(DEBUGOBJS) ../bin/poms ../bin/poms.debug $(DEBUGLIBDIR)/*.cpp.o $(DEBUGLIBDIR)/*.c.o
+	@rm -f $(OBJS) $(DEBUGOBJS) ../bin/poms ../bin/poms.debug $(DEBUGLIBDIR)/*.cpp.o $(DEBUGLIBDIR)/*.c.o $(LIBDIR)/*.cpp.o $(LIBDIR)/*.c.o
 
 debug: poms.debug
 poms.debug: $(DEBUGLIBDIR)/main_poms.cpp.o $(DEBUGOBJS)

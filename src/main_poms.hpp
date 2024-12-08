@@ -22,7 +22,7 @@
 #include "auxExport.hpp"
 #include "TiledExport.hpp"
 
-#define POMS_BIN_VERSION "0.17.0"
+#define POMS_BIN_VERSION "0.18.0"
 
 enum NOISE_TYPE {
   NOISE_TYPE_NONE = 0,
@@ -40,7 +40,13 @@ enum NOISE_PRESET_TYPE {
 typedef struct g_ctx_type {
   POMS *poms;
   tiled_export_t T;
+
+  // these might be more appropriate in the opt structure but are here
+  // presumably because the snapshots are intrastep dependent and not
+  // final output of the run.
+  //
   std::string tiled_snapshot_fn;
+  std::string sliced_tiled_snapshot_fn;
   std::string patch_snapshot_fn;
 
   // hack for now that lets other programs that call
