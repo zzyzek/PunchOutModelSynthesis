@@ -4073,7 +4073,7 @@ int poms_main(int argc, char **argv) {
           _update_viz_step( bms_step, opt, poms, g_ctx );
         }
 
-        // keep block or revert
+        // clean up BMS after our step resolutions
         //
         r = poms.BMSEnd();
         if (r<=0) { ret=r; break; }
