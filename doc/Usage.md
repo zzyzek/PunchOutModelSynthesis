@@ -38,8 +38,7 @@ poms lib version: 0.23.0
 
 ---
 
-`-C`, `--config`
----
+### `-C`, `--config`
 
 POMS config file name
 
@@ -49,8 +48,7 @@ Example:
 -C pillMortal_poms.json
 ```
 
-`-s`, `--size`
----
+### `-s`, `--size`
 
 Patch size.
 
@@ -72,8 +70,7 @@ Example (creates 7x11x1 block):
 -s 7,11,1
 ```
 
-`-q`, `--quilt-size`
----
+### `-q`, `--quilt-size`
 
 Quilt size.
 
@@ -96,8 +93,7 @@ Example (creates 24x21x23 block):
 -s 24,21,23
 ```
 
-`-b`, `--block`
----
+### `-b`, `--block`
 
 
 BMS resolution block size.
@@ -110,8 +106,7 @@ Example:
 -b 1
 ```
 
-`-B`, `--soften`
----
+### `-B`, `--soften`
 
 BMS Soften size to use within resolution blocks.
 
@@ -124,8 +119,8 @@ Example:
 -B 3,3,3
 ```
 
-`-J`, `--iter`
----
+### `-J`, `--iter`
+
 
 Max BMS iteration count.
 
@@ -137,8 +132,8 @@ Example:
 -J 10000
 ```
 
-`-w`, `--rand-w`
----
+### `-w`, `--rand-w`
+
 
 Linear random coefficient to use when choosing cell resolution.
 
@@ -150,8 +145,7 @@ Example:
 -w 1.0
 ```
 
-`-E`, `--rand-E`
----
+### `-E`, `--rand-E`
 
 Exponent for random element of choosing which cell to resolve.
 
@@ -165,8 +159,7 @@ Example:
 -E -1.75
 ```
 
-`-P`, `--block-policy`
----
+### `-P`, `--block-policy`
 
 Cell resolution policy used by BMS.
 
@@ -181,8 +174,7 @@ Example:
 -P min
 ```
 
-`-1`, `--tiled-poms`
----
+### `-1`, `--tiled-poms`
 
 Filename of the Tiled output file to generate on successfuly resolution.
 
@@ -192,8 +184,7 @@ Example:
 -1 tiled_output.json
 ```
 
-`-2`, `--stl`
----
+### `-2`, `--stl`
 
 Filename of the STL file to generate on successful resolution.
 
@@ -205,8 +196,7 @@ Example:
 -2 3d_output.stl
 ```
 
-`-3`, `--tiled-poms`
----
+### `-3`, `--tiled-poms`
 
 Filename of the Tiled POMS JSON file to generate on successful resolution.
 
@@ -216,8 +206,8 @@ Example:
 -3 poms_tiled_output.json
 ```
 
-`-5`, `--sliced-tiled-snapshot`
----
+### `-5`, `--sliced-tiled-snapshot`
+
 
 Filename of the run time sliced Tiled JSON file to generate.
 
@@ -231,8 +221,8 @@ Example:
 -5 sliced_tiled_output.json
 ```
 
-`-6`, `--patch-snapshot`
----
+### `-6`, `--patch-snapshot`
+
 
 Filename of the run time POMS patch snapshot file to generate.
 
@@ -242,8 +232,8 @@ Example:
 -6 snapshot.json
 ```
 
-`-7`, `--stl-snapshot`
----
+### `-7`, `--stl-snapshot`
+
 
 Filename of the run time STL file to generate.
 
@@ -253,8 +243,8 @@ Example:
 -7 snapshot.stl
 ```
 
-`-8`, `--tiled-snapshot`
----
+### `-8`, `--tiled-snapshot`
+
 
 Filename of the run time Tiled JSON file to generate.
 
@@ -264,8 +254,8 @@ Example:
 -8 tiled_snapshot.json
 ```
 
-`-9`, `--tiled-slideshow-dir`
----
+### `-9`, `--tiled-slideshow-dir`
+
 
 Directory to deposit run time Tiled JSON files generated.
 
@@ -275,8 +265,8 @@ Example:
 -9 tiled_snapshot/
 ```
 
-`-N`, `--noise`
----
+### `-N`, `--noise`
+
 
 Add noise to individual tile probabilities.
 
@@ -292,8 +282,8 @@ Example:
 -N 10:11223344:1
 ```
 
-`-@`, `--viz`
----
+### `-@`, `--viz`
+
 
 
 Filename of the run time gnuplot visualization to use.
@@ -304,8 +294,8 @@ Example:
 -@ snapshot.gp
 ```
 
-`-S`, `--seed`
----
+### `-S`, `--seed`
+
 
 Seed to use for the random number generator.
 
@@ -315,14 +305,14 @@ Example:
 -S 1337
 ```
 
-`-O`, `--option`
----
+### `-O`, `--option`
+
 
 Catch all for various other options.
 
 Currently, the list is:
 
-### `ac4opt`
+#### `ac4opt`
 
 Which AC4 optimization to use.
 
@@ -336,7 +326,7 @@ Example:
 -O ac4opt=flat
 ```
 
-### `viz_step`
+#### `viz_step`
 
 Frequency of snapshots.
 
@@ -346,7 +336,7 @@ Example:
 -O viz_step=10
 ```
 
-### `retry`
+#### `retry`
 
 BMS parameter to specify how many retries before softening.
 
@@ -356,7 +346,7 @@ Example:
 -O retry=4
 ```
 
-### `erode_count`
+#### `erode_count`
 
 POMS parameter to specify how many failures before an erosion occurs.
 
@@ -367,7 +357,7 @@ Example:
 ```
 
 
-### `erode_p`
+#### `erode_p`
 
 POMS parameter to specify erosion probability.
 
@@ -379,7 +369,7 @@ Example:
 -O erode_p=0.2:0.8
 ```
 
-### `patch-policy`
+#### `patch-policy`
 
 POMS parameter to specify patch choice schedule.
 
@@ -394,8 +384,8 @@ Example:
 -O patch-policy=wf
 ```
 
-`-V`, `--verbose`
----
+### `-V`, `--verbose`
+
 
 Set verbosity level:
 
@@ -418,8 +408,8 @@ Example:
 -V 1
 ```
 
-`-v`, `--version`
----
+### `-v`, `--version`
+
 
 Print out version.
 
@@ -429,8 +419,8 @@ Example:
 -v
 ```
 
-`-h`, `--help`
----
+### `-h`, `--help`
+
 
 Print out help.
 
