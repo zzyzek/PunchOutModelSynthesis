@@ -36,7 +36,51 @@ poms lib version: 0.23.0
   -v,--version      show version
 ```
 
----
+The `size`, `quilt-size`, `block`, `soften` and `seed` parameters can be specified in the `config` file (see [schema](https://github.com/zzyzek/PunchOutModelSynthesis/blob/main/doc/Schemas.md) for details).
+
+## Example
+
+In [`runs/pillMortal`](https://github.com/zzyzek/PunchOutModelSynthesis/tree/main/runs/pillMortal):
+
+```
+poms \
+  -C ./data/pillMortal_poms.json \
+  -s "48,48,1 \
+  -q "128,128,1" \
+  -b 1 \
+  -B 8,8,1 \
+  -J 10000 \
+  -w 1.0 \
+  -E -1.95 \
+  -1 ./data/pillMortal_128x128.json \
+  -8 ./data/pillMortal_snapshot.json \
+  -P min \
+  -O patch-policy=pending \
+  -S 1337 \
+  -V 1
+```
+
+The `data/pillMortal_poms.json` config file is used.
+
+This will run the `pillMortal` tile set and try to create a 128x128 grid, running BMS on 48x48 blocks with a soften window size of 8x8.
+BMS will resolve 1 cell at a time with a minimum entropy heuristic.
+The patch will be chosen randomly from unresolved cells in the grid.
+
+BMS will try 10,000 rounds of resolution and softening before it gives up.
+
+The random seed is 1337.
+The random coefficient is set to 1.0 with the random exponent set to -1.95.
+
+Verbosity is set to 1, printing after each patch resolution (success or failure).
+
+A Tiled (like) snapshot file, `data/pillMortal_snapshot.json`, is produced intra-run.
+On successful resolution, the Tiled `data/pillMortal_128x128.json` file is produced.
+
+Since the `size` and `quilt-size` are specified on the command line, they will override the values in the `data/pillMortal_poms.json`
+config file.
+
+
+## Parameter Description
 
 ### `-C`, `--config`
 
@@ -176,7 +220,7 @@ Example:
 
 ### `-1`, `--tiled-poms`
 
-Filename of the Tiled output file to generate on successfuly resolution.
+Filename of the Tiled output file to generate on successfully resolution.
 
 Example:
 
@@ -211,8 +255,8 @@ Example:
 
 Filename of the run time sliced Tiled JSON file to generate.
 
-This assumes the tileset is 2d with the third dimension of time.
-The Tiled file creates an expanded tilemap with the Z (time) dimension
+This assumes the tile set is 2d with the third dimension of time.
+The Tiled file creates an expanded tile map with the Z (time) dimension
 unfurled.
 
 Example:
@@ -381,7 +425,7 @@ One of `x+y+`, `xpyp`, `x-y+`, `xnyp`, `x-y-`, `xnyn`, `rand`,
 Example:
 
 ```
--O patch-policy=wf
+-O patch-policy=pending
 ```
 
 ### `-V`, `--verbose`
