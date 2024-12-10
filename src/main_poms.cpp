@@ -463,13 +463,6 @@ int rt_sliced_tiled_snapshot(g_ctx_t *ctx) {
   q_col = ctx->T.width / _W;
   q_row = ctx->T.height / _H;
 
-  //WIP
-  //DEBUG
-  //DEBUG
-  //DEBUG
-  printf("DEBUG_CELL_SIZE: (patch[%i:%i,%i,%i");
-  poms->printDebugCellSize();
-
   // we're going to have to worder about order, but for now we
   // can assume standard order (x,y,z)
   //
