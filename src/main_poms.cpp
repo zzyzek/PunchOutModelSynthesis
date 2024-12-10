@@ -4073,7 +4073,15 @@ int poms_main(int argc, char **argv) {
           _update_viz_step( bms_step, opt, poms, g_ctx );
         }
 
-        // clean up BMS after our step resolutions
+        // BMS post step resolution processing
+        //
+        // - success      :  0, block fully resolved
+        // - error        : <0, retry up to n_it times
+        //                  if the poms internal retry count counter
+        //                  exceeds the max retry count, an area
+        //                  is softened, otherwise left untouched
+        // - continuation : >0, hit max_bms_step but no conflice
+        //                  shouldn't happen with max_bms_step # of cells
         //
         r = poms.BMSEnd();
         if (r<=0) { ret=r; break; }
@@ -4133,7 +4141,7 @@ int poms_main(int argc, char **argv) {
         erode_indicator=1;
 
         _verbose_eroding( poms, erode_p, erode_p_s, erode_p_e );
-  
+
         for (ii=0; ii<1; ii++) {
           _erode_quilt_region( g_ctx, (int32_t *)(&(poms.m_patch_region[0][0])) );
           _erode_quilt(g_ctx,erode_p);
