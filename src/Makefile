@@ -16,7 +16,7 @@ DEBUGLIBDIR := .debuglib
 BINDIR := ../bin
 SRC_DIR := "./"
 
-BIN_CPP := 'test_poms|main_poms|le_poms|mcmc_poms|lace_poms|ir_poms|investigate'
+BIN_CPP := 'test_poms|main_poms|le_poms|mcmc_poms|lace_poms|ir_poms|investigate|sokoita'
 
 #SRCFILES := $(shell find $(SRC_DIR) -maxdepth 1 -name '*.cpp' -or -name '*.c' | grep -P -v -i 'test_poms|main_poms|quilt' )
 #SRCFILES := $(shell find $(SRC_DIR) -maxdepth 1 -name '*.cpp' -or -name '*.c' | grep -P -v -i 'test_poms|main_poms|le_poms|mcmc_poms|lace_poms|ir_poms|bms_poms' )
@@ -72,7 +72,7 @@ $(DEBUGLIBDIR)/%.c.o: %.c %.h
 	@mkdir -p $(DEBUGLIBDIR)
 	@$(CPP) -c $< -o $@ $(CFLAGS) $(DEBUGOPT)
 
-.PHONY: clean poms.debug poms.test poms.le debug test le mcmc poms.mcmc bms poms.bms
+.PHONY: clean poms.debug poms.test poms.le debug test le mcmc poms.mcmc bms poms.bms poms.sokoita
 
 clean:
 	@rm -f $(OBJS) $(DEBUGOBJS) ../bin/poms ../bin/poms.debug $(DEBUGLIBDIR)/*.cpp.o $(DEBUGLIBDIR)/*.c.o $(LIBDIR)/*.cpp.o $(LIBDIR)/*.c.o
@@ -93,6 +93,10 @@ poms.le: $(LIBDIR)/le_poms.cpp.o $(OBJS)
 mcmc: poms.mcmc
 poms.mcmc: $(LIBDIR)/mcmc_poms.cpp.o $(OBJS)
 	@$(CPP) $(OBJS) $(LIBDIR)/mcmc_poms.cpp.o -o $(BINDIR)/poms.mcmc  $(CFLAGS) $(OPT)
+
+sokoita: poms.sokoita
+poms.sokoita: $(LIBDIR)/sokoita_poms.cpp.o $(OBJS)
+	@$(CPP) $(OBJS) $(LIBDIR)/sokoita_poms.cpp.o -o $(BINDIR)/poms.sokoita  $(CFLAGS) $(OPT)
 
 # local arc consistent entropy
 lace: poms.lace
