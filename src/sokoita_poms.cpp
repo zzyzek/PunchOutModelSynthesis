@@ -3134,6 +3134,18 @@ int32_t _get_resolved_tile_val(POMS &poms, int32_t x, int32_t y, int32_t z) {
   return poms.cellTile(poms.m_plane, rc, 0);
 }
 
+int32_t _cell_in_patch(POMS &poms, int32_t x, int32_t y, int32_t z) {
+  if ((x <  poms.m_patch_region[0][0]) ||
+      (x >= poms.m_patch_region[0][1]) ||
+      (y <  poms.m_patch_region[1][0]) ||
+      (y >= poms.m_patch_region[1][1]) ||
+      (z <  poms.m_patch_region[2][0]) ||
+      (z >= poms.m_patch_region[2][1])) {
+    return 0;
+  }
+  return 1;
+}
+
 // helper functions
 //
 static int _is_player(char ch) {
@@ -3151,6 +3163,154 @@ static int _is_crate(char ch) {
   }
   return 0;
 }
+
+static int _is_wall_cell(POMS &poms, int32_t x, int32_t y, int32_t z) {
+  int32_t tile_val, tile_idx, tile_n;
+  int64_t cell;
+
+  char ch;
+
+  cell = poms.xyz2cell(x,y,z, poms.m_quilt_size);
+  if (cell < 0) { return -1; }
+
+  tile_n = poms.cellSize( poms.m_plane, cell );
+
+  for (tile_idx=0; tile_idx < tile_n; tile_idx++) {
+
+    tile_val = poms.cellTile( poms.m_plane, cell, tile_idx );
+    if (poms.m_tile_name[tile_val].size() < 3) { continue; }
+
+    ch = poms.m_tile_name[tile_val][2];
+
+    if (ch != '#') { return 0; }
+  }
+
+  return 1;
+}
+
+static int _is_crate_cell(POMS &poms, int32_t x, int32_t y, int32_t z) {
+  int32_t tile_val, tile_idx, tile_n;
+  int64_t cell;
+
+  char ch;
+
+  cell = poms.xyz2cell(x,y,z, poms.m_quilt_size);
+  if (cell < 0) { return -1; }
+
+  tile_n = poms.cellSize( poms.m_plane, cell );
+
+  for (tile_idx=0; tile_idx < tile_n; tile_idx++) {
+
+    tile_val = poms.cellTile( poms.m_plane, cell, tile_idx );
+    if (poms.m_tile_name[tile_val].size() < 3) { continue; }
+
+    ch = poms.m_tile_name[tile_val][2];
+
+    if ((ch != '$') &&
+        (ch != '*')) {
+      return 0;
+    }
+  }
+
+  return 1;
+}
+
+static int _is_player_cell(POMS &poms, int32_t x, int32_t y, int32_t z) {
+  int32_t tile_val, tile_idx, tile_n;
+  int64_t cell;
+
+  char ch;
+
+  cell = poms.xyz2cell(x,y,z, poms.m_quilt_size);
+  if (cell < 0) { return -1; }
+
+  tile_n = poms.cellSize( poms.m_plane, cell );
+
+  for (tile_idx=0; tile_idx < tile_n; tile_idx++) {
+
+    tile_val = poms.cellTile( poms.m_plane, cell, tile_idx );
+    if (poms.m_tile_name[tile_val].size() < 3) { continue; }
+
+    ch = poms.m_tile_name[tile_val][2];
+
+    if ((ch != '@') &&
+        (ch != '+')) {
+      return 0;
+    }
+  }
+
+  return 1;
+}
+
+// debugging
+//
+static int _simple_stats(POMS &poms) {
+  int64_t cell;
+  int32_t z, x,y;
+
+  int32_t tile_idx,
+          tile_val;
+
+  int max_crate_count=0,
+      max_player_count=0;
+
+  int plane_player_count,
+      plane_crate_count;
+
+  int player_resolved_count=0,
+      crate_resolved_count=0;
+
+  for (z=0; z<poms.m_quilt_size[2]; z++) {
+
+    plane_player_count=0;
+    plane_crate_count=0;
+
+    for (y=0; y<poms.m_quilt_size[1]; y++) {
+      for (x=0; x<poms.m_quilt_size[0]; x++) {
+        cell = poms.xyz2cell(x,y,z, poms.m_quilt_size);
+
+        tile_val = _get_resolved_tile_val(poms, x, y, z);
+
+        if (!_cell_in_patch(poms, x,y,z)) {
+          if (tile_val < 0) { continue; }
+          if (poms.m_tile_name[tile_val].size() < 3) { continue; }
+
+          if      (_is_player(poms.m_tile_name[tile_val][2]))  {
+            plane_player_count++;
+            player_resolved_count++;
+          }
+          else if (_is_crate(poms.m_tile_name[tile_val][2]))   {
+            plane_crate_count++;
+            crate_resolved_count;
+          }
+          continue;
+        }
+
+        if (_is_player_cell(poms, x,y,z)) {
+          plane_player_count++;
+          player_resolved_count++;
+        }
+        else if (_is_crate_cell(poms, x,y,z))   {
+          plane_crate_count++;
+          crate_resolved_count++;
+        }
+
+      }
+    }
+
+    if (plane_player_count > max_player_count)  { max_player_count = plane_player_count; }
+    if (plane_crate_count > max_crate_count)    { max_crate_count = plane_crate_count; }
+  }
+
+  printf("# simple_stats: max_player:%i, max_crate:%i, player_resolved:%i(/%i), crate_resolved:%i(/%i)\n",
+      max_player_count, max_crate_count,
+      player_resolved_count, (int)poms.m_quilt_size[2],
+      crate_resolved_count, (int)poms.m_quilt_size[2]);
+
+  return 0;
+}
+
+
 
 // hodge-podge of heristics to help narrow the search
 //
@@ -3210,7 +3370,7 @@ static int _is_crate(char ch) {
 //
 int knockout_inadmissible_tiles(POMS &poms) {
   static std::vector< int32_t > dijkstra_map[2];
-  static int32_t dmap_size[3] = {-1, -1, 1 };
+  static int32_t dmap_size[3] = {-1, -1, -1 };
 
   static std::vector< int8_t > visited;
 
@@ -3221,29 +3381,40 @@ int knockout_inadmissible_tiles(POMS &poms) {
   char player_code[2] = {'@', '+'},
        crate_code[2] = {'$', '*'};
 
-  char *tile_name,
-       tile_center_code;
-
-
-  int32_t bp,
-          xy_size;
-
   int32_t i, j, k;
 
   int32_t x, y, z;
-  int32_t T_p, T_n;
   int32_t v[3], u[3], w[3];
 
-  int32_t dx, dy, dz;
+  int32_t dx, dy;
+  int32_t z_nxt, dz, zi;
 
   int32_t dm_val,
+          _t,
+          n_tile,
+          tile_idx,
           tile_val;
 
   int64_t cell,
+          nei_cell,
+          player_begin_cell,
           u_cell,
           w_cell;
 
+  int32_t xy_dir[4][2] = { {1,0}, {-1,0}, {0,1}, {0,-1} };
+
   int player_found = 0;
+  int32_t player_pos[3] = {0};
+
+  int r=0;
+
+  int _debug = 0;
+  char _ch;
+  static int _call = -1;
+
+  int64_t knockout_count=0;
+
+  _call++;
 
   if ((dmap_size[0] != poms.m_quilt_size[0]) ||
       (dmap_size[1] != poms.m_quilt_size[1]) ||
@@ -3263,137 +3434,292 @@ int knockout_inadmissible_tiles(POMS &poms) {
   qpos_n[1] = 0;
   qpos_idx = 0;
 
-  xy_size = dmap_size[0]*dmap_size[1];
+  // clear
+  //
   for (cell=0; cell<visited.size(); cell++) { visited[cell] = 0; }
   for (cell=0; cell<dijkstra_map[0].size(); cell++) {
     dijkstra_map[0][cell] = -1;
     dijkstra_map[1][cell] = -1;
   }
 
-  player_found=0;
-  z=0;
-  for (y=0; y<dmap_size[1]; y++) {
-    for (x=0; x<dmap_size[0]; x++) {
-      tile_val = _get_resolved_tile_val(poms, x,y,z);
-      if (tile_val < 0) { continue; }
-      if (poms.m_tile_name.size() < 3) { continue; }
+  // forward and backward temporal dijkstra map generation
+  //
+  for (z=0; z<poms.m_quilt_size[2]; z++) {
 
-      if (_is_player( poms.m_tile_name[tile_val][2] )) {
+    // init selection,
+    // set visited to crate and wall positions
+    // find player location
+    //
+    player_found = 0;
+    player_pos[0] = -1;
+    player_pos[1] = -1;
+    player_pos[2] = -1;
+    for (y=0; y<poms.m_quilt_size[1]; y++) {
+      for (x=0; x<poms.m_quilt_size[0]; x++) {
         cell = poms.xyz2cell(x,y,z, poms.m_quilt_size);
-        dijkstra_map[0][cell] = 0;
-        if (!visited[cell]) {
-          visited[cell] = 1;
+        if (cell < 0) { continue; }
 
-          qpos[qpos_idx][ qpos_n[qpos_idx] ] = cell;
-          qpos_n[qpos_idx]++;
+        visited[cell] = 0;
+        dijkstra_map[1][cell] = -1;
+
+        if (_is_wall_cell(poms, x,y,z)) {
+          visited[cell] = 2;
+          dijkstra_map[1][cell] = -2;
+          continue;
+        }
+
+        if (_is_crate_cell(poms, x,y,z)) {
+          visited[cell] = 3;
+          dijkstra_map[1][cell] = -3;
+          continue;
+        }
+
+        if (_is_player_cell(poms, x,y,z)) {
+          visited[cell] = 1;
+          dijkstra_map[1][cell] = 0;
+
+          player_pos[0] = x;
+          player_pos[1] = y;
+          player_pos[2] = z;
 
           player_found++;
-          break;
-        }
-      }
 
-    }
-  }
-
-  if (player_found != 1) {
-
-    printf("SANITY ERROR: (unique) player not found on z=0 plane (%i)\n", player_found);
-
-    return -1;
-  }
-
-
-  for (z=1; z<poms.m_quilt_size[2]; z++) {
-
-    // clear out current plane
-    //
-    bp = poms.xyz2cell(0,0,z, poms.m_quilt_size);
-    for (i=0; i<xy_size; i++) {
-      dijkstra_map[1][bp + i] = -1;
-      visited[bp + i] = 0;
-    }
-
-    while (qpos_n[qpos_idx] > 0) {
-
-      // pop
-      //
-      cell = qpos[qpos_idx][ qpos_n[qpos_idx]-1 ];
-      qpos_n[qpos_idx]--;
-
-      poms.cell2vec(v, cell, poms.m_quilt_size);
-
-      dm_val = dijkstra_map[1][cell];
-
-      //DEBUG
-      //DEBUG
-      //DEBUG
-      if ((v[2]-1) != z) {
-        printf("SANITY ERROR: qpos[%i][%i]: %i,%i,%i {%i} z-1:%i != z:%i\n",
-            (int)qpos_idx, (int)qpos_n[qpos_idx],
-            v[0], v[1], v[2], (int)cell, v[2]-1, z);
-        return -1;
-      }
-
-      for (dy=-1; dy<2; dy++) {
-        for (dx=-1; dx<2; dx++) {
-          if ((dx==0) && (dy==0)) { continue; }
-
-          u[0] = v[0] + dx;
-          u[1] = v[1] + dy;
-          u[2] = v[2]+1;
-
-          u_cell = poms.vec2cell(u, poms.m_quilt_size);
-          if (u_cell < 0) { continue; }
-
-          dm_val = dijkstra_map[1][cell];
-
-          if (visited[u_cell]) {
-
-            if ((dm_val+1) < dijkstra_map[1][u_cell]) {
-              dijkstra_map[1][u_cell] = dm_val+1;
+          //DEBUG
+          //DEBUG
+          //DEBUG
+          if (_debug > 1) {
+            printf("{%i} player_found! %i @ [%i,%i,%i]{%i}:",
+                _call, player_found, x,y,z, (int)cell);
+            for (i=0; i<poms.cellSize( poms.m_plane, cell ); i++) {
+              tile_val = poms.cellTile( poms.m_plane, cell, i );
+              printf(" %i{%s}", (int)tile_val, poms.m_tile_name[tile_val].c_str());
             }
-
-            continue;
+            printf("\n");
           }
 
-          qpos[1-qpos_idx].push_back( u_cell );
-          visited[u_cell] = 1;
+        }
+      }
+    }
+
+    // duplicate player found
+    //
+    if (player_found > 1) { return -1; }
+    if (!player_found) { continue; }
+
+    //DEBUG
+    //DEBUG
+    //DEBUG
+    //_debug=0;
+    //if (z>0) { _debug = 1; }
+
+    player_begin_cell = poms.xyz2cell(player_pos[0], player_pos[1], player_pos[2], poms.m_quilt_size);
+
+    for (zi=0; zi<2; zi++) {
+      qpos_idx = 0;
+      qpos_n[0] = 0;
+      qpos_n[1] = 0;
+      qpos[ qpos_idx ][ qpos_n[qpos_idx] ] = player_begin_cell;
+      qpos_n[ qpos_idx ]++;
+
+      dz = ((zi==0) ? -1 : 1);
+
+      //DEBUG
+      //DEBUG
+      //DEBUG
+      if (_debug > 1) {
+        printf("{%i} print initial plane z:%i\n", _call, (int)z);
+        for (y=0; y < poms.m_quilt_size[1]; y++) {
+          for (x=0; x < poms.m_quilt_size[0]; x++) {
+            cell = poms.xyz2cell(x,y,z, poms.m_quilt_size);
+            if (dijkstra_map[1][cell] == -1) {
+              _ch = ' ';
+              if (_is_wall_cell(poms, x,y,z)) { _ch = '#'; }
+              else if (_is_crate_cell(poms, x,y,z)) { _ch = '$'; }
+              printf("  %c%c", _ch, (visited[cell] ? '~' : ' '));
+            }
+            else {
+              printf(" %2i%c", dijkstra_map[1][cell], (visited[cell] ? '~' : ' '));
+            }
+          }
+          printf("\n");
+        }
+        printf("\n");
+        printf(">>(presskey)\n");
+        fgetc(stdin);
+      }
+
+
+      qpos_idx=1;
+      for (z_nxt = (z+dz); (z_nxt < poms.m_quilt_size[2]) && (z_nxt >= 0); z_nxt += dz) {
+
+        qpos_n[ qpos_idx ] = 0;
+        qpos_idx = 1-qpos_idx;
+
+        //DEBUG
+        //DEBUG
+        //DEBUG
+        if (_debug > 1) {
+          printf("{%i} qpos[%i][%i]:", _call, (int)qpos_idx, (int)qpos_n[qpos_idx]);
+          for (i=0; i<qpos_n[qpos_idx]; i++) { printf(" %i", (int)qpos[qpos_idx][i]); }
+          printf("\n");
+        }
+
+        // clear plane
+        //
+        for (y=0; y < poms.m_quilt_size[1]; y++) {
+          for (x=0; x < poms.m_quilt_size[0]; x++) {
+            cell = poms.xyz2cell(x,y,z_nxt, poms.m_quilt_size);
+            dijkstra_map[1][cell] = -1;
+            visited[cell] = 0;
+          }
+        }
+
+        while (qpos_n[qpos_idx] > 0) {
+          cell = qpos[qpos_idx][ qpos_n[qpos_idx]-1 ];
+          qpos_n[qpos_idx]--;
+
+          poms.cell2vec(v, cell, poms.m_quilt_size);
+
+          //DEBUG
+          //DEBUG
+          //DEBUG
+          if (_debug > 1) {
+            printf("{%i} cell:%i, v{%i,%i,%i}\n", _call, (int)cell, v[0], v[1], v[2]);
+          }
+
+          for (i=0; i<4; i++) {
+            u[0] = v[0] + xy_dir[i][0];
+            u[1] = v[1] + xy_dir[i][1];
+            u[2] = v[2] + dz;
+
+            nei_cell = poms.xyz2cell(u[0], u[1], u[2], poms.m_quilt_size);
+            if (nei_cell < 0) { continue; }
+
+            if (visited[nei_cell] > 0) { continue; }
+            if (_is_wall_cell(poms, u[0], u[1], u[2])) {
+              visited[nei_cell] = 2;
+              continue;
+            }
+            if (_is_crate_cell(poms, u[0], u[1], u[2])) {
+              visited[nei_cell] = 3;
+              continue;
+            }
+
+            dm_val = dijkstra_map[1][cell];
+
+            visited[nei_cell] = 1;
+            //dijkstra_map[1][nei_cell] = ( (dijkstra_map[1][nei_cell] < 0) ? dm_val : (dijkstra_map[1][cell]+1) );
+            dijkstra_map[1][nei_cell] = 1;
+            qpos[1-qpos_idx][ qpos_n[1-qpos_idx] ] = nei_cell;
+            qpos_n[1-qpos_idx]++;
+
+          }
 
         }
+
+        //DEBUG
+        //DEBUG
+        //DEBUG
+        if (_debug > 1) {
+          printf("{%i} print plane z:%i, z_nxt:%i\n", _call, (int)z, (int)z_nxt);
+          for (y=0; y < poms.m_quilt_size[1]; y++) {
+            for (x=0; x < poms.m_quilt_size[0]; x++) {
+              cell = poms.xyz2cell(x,y,z_nxt, poms.m_quilt_size);
+              if (dijkstra_map[1][cell] == -1) {
+                _ch = ' ';
+                if (_is_wall_cell(poms, x,y,z_nxt)) { _ch = '#'; }
+                else if (_is_crate_cell(poms, x,y,z_nxt)) { _ch = '$'; }
+                printf("  %c%c", _ch, (visited[cell] ? '~' : ' '));
+              }
+              else {
+                printf(" %2i%c", dijkstra_map[1][cell], (visited[cell] ? '~' : ' '));
+              }
+            }
+            printf("\n");
+          }
+          printf("\n");
+          printf(">>(presskey)\n");
+          fgetc(stdin);
+        }
+
       }
 
     }
 
-    player_found = 0;
-
-    for (y=0; y<dmap_size[1]; y++) {
-      for (x=0; x<dmap_size[0]; x++) {
-
-        tile_val = _get_resolved_tile_val(poms, x,y,z);
-        if (tile_val < 0) { continue; }
-
-        tile_center_code = poms.m_tile_name[tile_val][2];
-
-        if (_is_player(tile_center_code)) {
-          player_found = 1;
-          break;
-        }
-
+    // intersect current dijkstra_map with saved
+    //
+    if (z==0) {
+      for (cell=0; cell < poms.m_cell_count; cell++) {
+        dijkstra_map[0][cell] = dijkstra_map[1][cell];
       }
-      if (player_found) { break; }
+    }
+    else {
+      for (cell=0; cell < poms.m_cell_count; cell++) {
+        if ((dijkstra_map[0][cell] >= 0) &&
+            (dijkstra_map[1][cell] < 0)) {
+          dijkstra_map[0][cell] = -1;
+        }
+      }
     }
 
-    if (player_found) {
+    if (_debug > 0) {
+      printf("{%i} saved dijkstra_map[0]:\n", _call);
+      for (z=0; z<poms.m_quilt_size[2]; z++) {
+        printf("---\nz[%i]:\n", (int)z);
+        for (y=0; y<poms.m_quilt_size[1]; y++) {
+          for (x=0; x<poms.m_quilt_size[0]; x++) {
+
+            cell = poms.xyz2cell(x,y,z, poms.m_quilt_size);
+            if (dijkstra_map[0][cell] == -1) {
+              _ch = ' ';
+              if (_is_wall_cell(poms, x,y,z)) { _ch = '#'; }
+              else if (_is_crate_cell(poms, x,y,z)) { _ch = '$'; }
+              printf("  %c%c", _ch, (visited[cell] ? '~' : ' '));
+            }
+            else {
+              printf(" %2i%c", dijkstra_map[0][cell], (visited[cell] ? '~' : ' '));
+            }
+
+          }
+          printf("\n");
+        }
+        printf("---\n");
+      }
+      printf("\n");
+      fgetc(stdin);
     }
-
-
 
 
   }
 
+  // remove player tiles that can't exist
+  //
+  poms.cellTileVisitedClear( poms.m_plane );
+  poms.cellTileQueueClear( poms.m_plane );
+  for (cell = 0; cell < poms.m_cell_count; cell++) {
+    poms.cell2vec(v, cell, poms.m_quilt_size);
+    if (!_cell_in_patch(poms, v[0], v[1], v[2])) { continue; }
+    if (dijkstra_map[0][cell] >= 0) { continue; }
 
+    n_tile = poms.cellSize( poms.m_plane, cell );
+    for (tile_idx = 0; tile_idx < n_tile; tile_idx++) {
+      tile_val = poms.cellTile( poms.m_plane, cell, tile_idx );
+      if (poms.m_tile_name[tile_val].size() < 3) { continue; }
 
+      if (_is_player(poms.m_tile_name[tile_val][2])) {
+        poms.cellTileVisited( poms.m_plane, cell, tile_val, 1 );
+        poms.cellTileQueuePush( poms.m_plane, cell, tile_val );
 
+        knockout_count++;
+      }
+    }
+
+  }
+
+  //printf("knockout count:%i\n", (int)knockout_count);
+
+  r = poms.AC4Update();
+  if (r < 0) { return r; }
 
   return 0;
 }
@@ -4611,7 +4937,17 @@ int poms_main(int argc, char **argv) {
           }
 
           r = knockout_inadmissible_tiles(poms);
-          if (r<=0) { break; }
+          if (r<0) {
+
+            //DEBUG
+            //DEBUG
+            //DEBUG
+            printf("KNOCKOUT.0! %i\n", r);
+
+            r = -1;
+            poms.m_state = POMS_STATE_CONFLICT;
+            break;
+          }
 
           _update_viz_step( bms_step, opt, poms, g_ctx );
         }
@@ -4632,8 +4968,23 @@ int poms_main(int argc, char **argv) {
               break;
             }
 
+            //DEBUG
+            //DEBUG
+            //DEBUG
+            _simple_stats(poms);
+
             r = knockout_inadmissible_tiles(poms);
-            if (r<=0) { break; }
+            if (r<0) {
+
+              //DEBUG
+              //DEBUG
+              //DEBUG
+              printf("KNOCKOUT.1! %i\n", r);
+
+              r = -1;
+              poms.m_state = POMS_STATE_CONFLICT;
+              break;
+            }
 
           } while(0);
         }
