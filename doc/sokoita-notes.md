@@ -185,4 +185,20 @@ Any tile that has a player at its center is then removed from the grid.
 The same idea can be done for crates but some care has to be taken because crates
 can only be moved by players.
 
+Only start the flood fill for $(x,y)$ planes that have the full crate count.
+At the very least, this should be the first and last configuration.
+
+For every crate cell in the full crate $(x,y)$ plane, use that as the start for the flood fill but only allow a
+flood to a cell if the there's at least one player center tile in the direction.
+As with the player, flood fill backward and forward in time ($z$).
+
+Keep the intersection of all floods and then remove crate center tiles from
+the grid at every location not touched by the flood.
+
+This should be done after the player flood fill to further restrict the space.
+
+---
+
+All the above methods can be repeated until no more changes are made.
+
 
