@@ -235,7 +235,7 @@ For example, the following is a higher order deadlock pattern:
 -------
 ```
 
-In the example of `A` if the following patern is encountered:
+In the example of `A` if the following pattern is encountered:
 
 ```
 -----
@@ -254,7 +254,7 @@ Another is to try to create a library at run time to try and adapt
 the search to the specific level encountered.
 
 A simple test for knockout patterns can be setup by creating a small temporal example
-with the initial pattern restricted to the inital, test, knockout pattern, and the
+with the initial pattern restricted to the initial, test, knockout pattern, and the
 end pattern empty for non-wall positions.
 If the final configuration can be achieved, through simple constraint propagation,
 we know this isn't a knockout pattern.
@@ -314,4 +314,57 @@ but I don't see how to do that effectively.
 
 I don't have high hopes for this method as it seems like there's going to need to be more
 long term planning to find solutions.
+
+
+###### 2024-12-16
+
+I've pretty much reached an impasse. The solver is pretty abysmal and it's not clear to me
+how to make progress.
+
+It seems like it should do better than it is but it's clear, in its current state,
+it's not very powerful and gets easily confused.
+
+Some thoughts:
+
+* The cell count is in mostly in the single to low double digit count, meaning
+  that the space of possibility is vastly reduced for a given level
+* Better visualization is probably the way forward, to try and figure out what the
+  issues are and how to address them. Some ideas for visualization and misc.:
+  - confirm values that should be removed, either first order or higher order,
+    are getting removed
+  - frequency of each center tile in the super tile
+  - frequency of player and crate movement
+  - overlay of crate and player movement direction options
+* Instead of implementing knockouts or the like, try and get a sense for how
+  much benefit it would actually give by counting beforehand
+* The player count restriction hurts the validation0 level, presumably because
+  it gets locked into a player in an area that's too far away
+* Atomic moves are really player movement to adjacent crates, so they're non-local
+  in that sense. I don't see an easy way to coerce the solver into nudging the player
+  to the valid next move location. Some ideas that probably won't work:
+  - knockout player center tile at (x,y,z+1) if player at (x,y,z) and (x,y,z-1)
+    ('no-return' mode)
+  - knockout all but player valid moves to next crate location (finicky as crates
+    need to be fully resolved)
+
+Also, providing sample levels where higher order planning and moves are effectively
+forced might be a better route to understand where the solver gets hung up.
+
+I maintain constraint propagation can still be powerful for understanding the search
+space, especially if it has some relation to belief propagation, but I suspect a
+better model/method is more appropriate for this problem.
+
+For example, doing Monte Carlo Tree Search and represent the next valid state as
+the atomic move (with move cost) to a neighbor crate, then representing the implied
+state as a graph that then can use CSP to provide some extra inference.
+Adjoining some neural network to improve pattern matching on which direction to prioritize
+might provide a big boost in solver power.
+
+As previously discussed, this method relied on the assumption that stochastic moves of player
+or crates could result in a solution.
+I suspect that this pretty much isn't true, at least as setup by this CBTG problem.
+If we really wanted to validate this idea, we can make a pure stochastic solver, with some
+states to avoid, to see how well it would do.
+
+  
 
