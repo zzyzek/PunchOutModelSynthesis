@@ -13,7 +13,10 @@
 
 #include "sokoita_poms.hpp"
 
+int KNOCKOUT_OPT = 0;
+
 g_ctx_t g_ctx = {0};
+
 
 static double _rand() {
   static int init=0;
@@ -523,7 +526,7 @@ int rt_sliced_tiled_snapshot(g_ctx_t *ctx) {
   fp = fdopen(fd, "w");
   if (!fp) { return -1; }
 
-  r = exportTiledJSON( fp, ctx->T );
+  r = exportTiledJSON( fp, ctx->T, ctx->T.width );
   if (r<0) { return r; }
 
   fclose(fp);
@@ -3090,9 +3093,88 @@ static int _verbose_quilt_step( POMS &poms, int ret, int64_t quilt_step, int fai
 // verbose print end
 //-----
 
-
-// sokoita
+//-----
+//             __        _ __
+//   ___ ___  / /_____  (_) /____ _
+//  (_-</ _ \/  '_/ _ \/ / __/ _ `/
+// /___/\___/_/\_\\___/_/\__/\_,_/
 //
+// sokoita begin
+
+static std::vector< std::vector< int8_t > >  KNOCKOUT_PATTERN;
+
+static int construct_xy_knockout(void) {
+  int8_t encode_pat[] = {
+    2, 2, 33, 36, 35, 35,
+    2, 2, 35, 33, 35, 36,
+    2, 2, 35, 35, 36, 33,
+    2, 2, 36, 35, 33, 35,
+    2, 2, 36, 33, 35, 35,
+    2, 2, 35, 36, 35, 33,
+    2, 2, 35, 35, 33, 36,
+    2, 2, 33, 35, 36, 35,
+    2, 2, 33, 36, 35, 36,
+    2, 2, 35, 33, 36, 36,
+    2, 2, 36, 35, 36, 33,
+    2, 2, 36, 36, 33, 35,
+    2, 2, 36, 33, 35, 36,
+    2, 2, 35, 36, 36, 33,
+    2, 2, 36, 35, 33, 36,
+    2, 2, 33, 36, 36, 35,
+    2, 2, 36, 36, 35, 33,
+    2, 2, 35, 36, 33, 36,
+    2, 2, 33, 35, 36, 36,
+    2, 2, 36, 33, 36, 35,
+    2, 2, 33, 36, 36, 36,
+    2, 2, 36, 33, 36, 36,
+    2, 2, 36, 36, 36, 33,
+    2, 2, 36, 36, 33, 36,
+    3, 3, 35, 35, 35, 35, 32, 33, 35, 36, 63,
+    3, 3, 35, 35, 35, 36, 32, 35, 63, 33, 35,
+    3, 3, 63, 36, 35, 33, 32, 35, 35, 35, 35,
+    3, 3, 35, 33, 63, 35, 32, 36, 35, 35, 35,
+    3, 3, 35, 35, 35, 35, 32, 36, 35, 33, 63,
+    3, 3, 35, 35, 35, 33, 32, 35, 63, 36, 35,
+    3, 3, 63, 33, 35, 36, 32, 35, 35, 35, 35,
+    3, 3, 35, 36, 63, 35, 32, 33, 35, 35, 35,
+    2, 5, 35, 35, 35, 35, 35, 35, 32, 33, 32, 35,
+    5, 2, 35, 35, 32, 35, 33, 35, 32, 35, 35, 35,
+    2, 5, 35, 32, 33, 32, 35, 35, 35, 35, 35, 35,
+    5, 2, 35, 35, 35, 32, 35, 33, 35, 32, 35, 35,
+    0
+  };
+
+  std::vector< int8_t > tv;
+
+  int idx;
+  int8_t i, j, k;
+  int8_t len = 0;
+  int8_t row, col;
+
+
+  for (idx=0; encode_pat[idx]; ) {
+
+    tv.clear();
+
+    row = encode_pat[idx];
+    col = encode_pat[idx+1];
+    idx+=2;
+
+    tv.push_back(row);
+    tv.push_back(col);
+
+    len = row*col;
+    for (i=0; i<len; i++) {
+      tv.push_back( encode_pat[idx] );
+      idx++;
+    }
+
+    KNOCKOUT_PATTERN.push_back(tv);
+  }
+
+  return 0;
+}
+
 
 // convenience function to lookup a fully resolved cells tile value.
 //
@@ -3242,6 +3324,68 @@ static int _is_player_cell(POMS &poms, int32_t x, int32_t y, int32_t z) {
   return 1;
 }
 
+#define EMPT_C '_'
+#define WALL_C '#'
+#define MOVE_C ' '
+#define CRAT_C '$'
+#define GOAL_C '.'
+#define GCRT_C '*'
+#define PLAY_C '@'
+#define GPLY_C '+'
+
+#define EMPT 0
+#define WALL 1
+#define MOVE 2
+#define CRAT 3
+#define GOAL 4
+#define GCRT 5
+#define PLAY 6
+#define GPLY 7
+
+static int8_t _squash_cell_tile(POMS &poms, int32_t x, int32_t y, int32_t z) {
+  int32_t tile_val, tile_idx, tile_n;
+  int64_t cell;
+
+  char ch;
+
+  int i;
+  int type_count[8] = {0};
+  int type_lookup[256] = {-1};
+  int type_idx=-1;
+
+  type_lookup[EMPT_C] = EMPT;
+  type_lookup[WALL_C] = WALL;
+  type_lookup[MOVE_C] = MOVE;
+  type_lookup[CRAT_C] = CRAT;
+  type_lookup[GOAL_C] = GOAL;
+  type_lookup[GCRT_C] = GCRT;
+  type_lookup[PLAY_C] = PLAY;
+  type_lookup[GPLY_C] = GPLY;
+
+  cell = poms.xyz2cell(x,y,z, poms.m_quilt_size);
+  if (cell < 0) { return -1; }
+
+  tile_n = poms.cellSize( poms.m_plane, cell );
+
+  for (tile_idx=0; tile_idx < tile_n; tile_idx++) {
+    tile_val = poms.cellTile( poms.m_plane, cell, tile_idx );
+    if (poms.m_tile_name[tile_val].size() < 3) { return -2; }
+
+    ch = poms.m_tile_name[tile_val][2];
+    if (type_lookup[ch] < 0) { return -3; }
+    type_count[ type_lookup[ch] ]++;
+  }
+
+  for (i=0; i<8; i++) {
+    if (type_count[i] > 0) {
+      if (type_idx >= 0) { return -1; }
+      type_idx = i;
+    }
+  }
+
+  return type_idx;
+}
+
 // debugging
 //
 static int _simple_stats(POMS &poms) {
@@ -3259,6 +3403,9 @@ static int _simple_stats(POMS &poms) {
 
   int player_resolved_count=0,
       crate_resolved_count=0;
+
+  std::vector< int32_t >  resolved_crate_z,
+                          resolved_player_z;
 
   for (z=0; z<poms.m_quilt_size[2]; z++) {
 
@@ -3298,6 +3445,9 @@ static int _simple_stats(POMS &poms) {
       }
     }
 
+    resolved_crate_z.push_back(plane_crate_count);
+    resolved_player_z.push_back(plane_player_count);
+
     if (plane_player_count > max_player_count)  { max_player_count = plane_player_count; }
     if (plane_crate_count > max_crate_count)    { max_crate_count = plane_crate_count; }
   }
@@ -3306,6 +3456,14 @@ static int _simple_stats(POMS &poms) {
       max_player_count, max_crate_count,
       player_resolved_count, (int)poms.m_quilt_size[2],
       crate_resolved_count, (int)poms.m_quilt_size[2]);
+
+  printf("# res_playr_z[%i]:", (int)resolved_player_z.size());
+  for (z=0; z<resolved_player_z.size(); z++) { printf(" %2i", resolved_player_z[z]); }
+  printf("\n");
+
+  printf("# res_crate_z[%i]:", (int)resolved_player_z.size());
+  for (z=0; z<resolved_crate_z.size(); z++) { printf(" %2i", resolved_crate_z[z]); }
+  printf("\n");
 
   return 0;
 }
@@ -3405,6 +3563,10 @@ int knockout_inadmissible_tiles(POMS &poms) {
 
   int player_found = 0;
   int32_t player_pos[3] = {0};
+
+  int crates_found = 0,
+      crates_count = 0;;
+  std::vector< int32_t > crates_pos;
 
   int r=0;
 
@@ -3716,7 +3878,121 @@ int knockout_inadmissible_tiles(POMS &poms) {
 
   }
 
-  //printf("knockout count:%i\n", (int)knockout_count);
+
+  // spatial crate knockout patterns
+  //
+  int32_t knockout_idx=0,
+          knockout_row=0,
+          knockout_col=0;
+  int pat_found = 0;
+
+  int8_t knockout_val=0;
+  int8_t squash_tile=0;
+
+  int kp_idx=0;
+  int64_t knockout_crate_cell=-1;
+
+  int32_t _pos[3];
+
+  std::vector< int8_t > _debug_pat;
+
+  for (knockout_idx=0; knockout_idx < KNOCKOUT_PATTERN.size(); knockout_idx++) {
+
+    knockout_row = KNOCKOUT_PATTERN[knockout_idx][0];
+    knockout_col = KNOCKOUT_PATTERN[knockout_idx][1];
+
+    for (z=0; z<poms.m_quilt_size[2]; z++) {
+      for (y=0; y<poms.m_quilt_size[1]; y++) {
+        for (x=0; x<poms.m_quilt_size[0]; x++) {
+
+          if ( ((x+knockout_col) >= poms.m_quilt_size[0]) ||
+               ((y+knockout_row) >= poms.m_quilt_size[1]) ) {
+            continue;
+          }
+
+          _debug_pat.clear();
+
+          kp_idx=2;
+          pat_found = 1;
+          for (dy=0; dy<knockout_row; dy++) {
+            for (dx=0; dx<knockout_col; dx++) {
+
+              knockout_val = KNOCKOUT_PATTERN[knockout_idx][kp_idx];
+              kp_idx++;
+
+              _debug_pat.push_back( knockout_val );
+
+              if (knockout_val == '!') {
+                knockout_crate_cell = poms.xyz2cell(x,y,z, poms.m_quilt_size);
+              }
+
+              if ( (knockout_val == '?') ||
+                   (knockout_val == '!') ) { continue; }
+
+              squash_tile = _squash_cell_tile(poms, x+dx, y+dy, z);
+              if (squash_tile < 0) {
+                pat_found = 0;
+                break;
+              }
+
+              if (squash_tile != knockout_val) {
+                pat_found = 0;
+                break;
+              }
+
+              _debug_pat[ _debug_pat.size()-1 ] = squash_tile;
+
+            }
+            if (!pat_found) { break; }
+          }
+
+
+          if (pat_found) {
+            n_tile = poms.cellSize( poms.m_plane, knockout_crate_cell );
+            for (tile_idx = 0; tile_idx < n_tile; tile_idx++) {
+              tile_val = poms.cellTile( poms.m_plane, knockout_crate_cell, tile_idx );
+              if (poms.m_tile_name[tile_val].size() < 3) { continue; }
+
+              if (_is_crate(poms.m_tile_name[tile_val][2])) {
+                if ( !poms.cellTileVisited( poms.m_plane, knockout_crate_cell, tile_val ) ) {
+                  poms.cellTileVisited( poms.m_plane, knockout_crate_cell, tile_val, 1 );
+                  poms.cellTileQueuePush( poms.m_plane, knockout_crate_cell, tile_val );
+
+                  poms.cell2vec(_pos, knockout_crate_cell, poms.m_quilt_size);
+                  printf("CRATE_KNOCKOUT @ cell [%i,%i,%i]{%i} (tile_val %i)\n",
+                      (int)_pos[0], (int)_pos[1], (int)_pos[2], (int)knockout_crate_cell, (int)tile_val);
+
+                  knockout_count++;
+
+                  /*
+                  //DEBUG
+                  //DEBUG
+                  //DEBUG
+                  i=0;
+                  for (dy=0; dy<knockout_row; dy++) {
+                    for (dx=0; dx<knockout_col; dx++) {
+                      printf("%c", _debug_pat[i]);
+                      i++;
+                    }
+                    printf("\n");
+                  }
+                  printf("\n");
+                  */
+
+                }
+
+              }
+            }
+
+
+          }
+
+        }
+      }
+    }
+    
+  }
+  
 
   r = poms.AC4Update();
   if (r < 0) { return r; }
@@ -3761,35 +4037,6 @@ int sokoita_player_crate_count_min_check(POMS &poms) {
     for (y=0; y<poms.m_quilt_size[1]; y++) {
       for (x=0; x<poms.m_quilt_size[0]; x++) {
 
-        /*
-        cell = poms.xyz2cell(x,y,z, poms.m_quilt_size);
-
-        if ((x <  poms.m_patch_region[0][0]) ||
-            (x >= poms.m_patch_region[0][1]) ||
-            (y <  poms.m_patch_region[1][0]) ||
-            (y >= poms.m_patch_region[1][1]) ||
-            (z <  poms.m_patch_region[2][0]) ||
-            (z >= poms.m_patch_region[2][1])) {
-          if (poms.m_quilt_tile[cell] < 0) { continue; }
-          val = poms.m_quilt_tile[cell];
-        }
-        else {
-          rp[0] = x - poms.m_patch_region[0][0];
-          rp[1] = y - poms.m_patch_region[1][0];
-          rp[2] = z - poms.m_patch_region[2][0];
-
-          rc = poms.vec2cell(rp);
-          if (rc < 0) { continue; }
-
-          if (poms.cellSize(poms.m_plane, rc) != 1) { continue; }
-
-          rc = poms.vec2cell(rp);
-          if (rc < 0) { continue; }
-          if (poms.cellSize(poms.m_plane, rc) != 1) { continue; }
-          val = poms.cellTile(poms.m_plane, rc, 0);
-
-        }
-        */
         val = _get_resolved_tile_val(poms, x,y,z);
         if (val < 0) { continue; }
 
@@ -3867,47 +4114,11 @@ int repeated_z_state(POMS &poms) {
           //
           for (idx=0; idx<2; idx++) {
 
-            /*
-            if ((p[idx][0]  < poms.m_patch_region[0][0]) ||
-                (p[idx][0] >= poms.m_patch_region[0][1]) ||
-                (p[idx][1]  < poms.m_patch_region[1][0]) ||
-                (p[idx][1] >= poms.m_patch_region[1][1]) ||
-                (p[idx][2]  < poms.m_patch_region[2][0]) ||
-                (p[idx][2] >= poms.m_patch_region[2][1])) {
-              if (poms.m_quilt_tile[cell[idx]] < 0) {
-                is_diff = 1;
-                break;
-              }
-              val[idx] = poms.m_quilt_tile[cell[idx]];
-            }
-            else {
-              rp[0] = p[idx][0] - poms.m_patch_region[0][0];
-              rp[1] = p[idx][1] - poms.m_patch_region[1][0];
-              rp[2] = p[idx][2] - poms.m_patch_region[2][0];
-
-              rc = poms.vec2cell(rp);
-              if (rc < 0) {
-                is_diff = 1;
-                break;
-              }
-
-              if (poms.cellSize(poms.m_plane, rc) == 1) {
-                val[idx] = poms.cellTile(poms.m_plane, rc, 0);
-              }
-              else {
-                is_diff = 1;
-                break;
-              }
-
-            }
-            */
-
             val[idx] = _get_resolved_tile_val(poms, p[idx][0], p[idx][1], p[idx][2]);
             if (val[idx] < 0) {
               is_diff = 1;
               break;;
             }
-
 
           }
           //
@@ -3938,6 +4149,14 @@ _repeated_z:
 
   return 1;
 }
+
+// sokoita end
+//             __        _ __
+//   ___ ___  / /_____  (_) /____ _
+//  (_-</ _ \/  '_/ _ \/ / __/ _ `/
+// /___/\___/_/\_\\___/_/\__/\_,_/
+//
+//-----
 
 
 //---
@@ -4773,6 +4992,12 @@ int poms_main(int argc, char **argv) {
     poms.m_distance_p[2] = (double)poms.m_size[2]/2.0;
   }
 
+  //EXPERIMENTAL
+  //EXPERIMENTAL
+  //EXPERIMENTAL
+  //
+  construct_xy_knockout();
+
   for (quilt_step=0; quilt_step < max_quilt_step; quilt_step++) {
 
     g_ctx.m_iter++;
@@ -4936,58 +5161,64 @@ int poms_main(int argc, char **argv) {
             break;
           }
 
-          r = knockout_inadmissible_tiles(poms);
-          if (r<0) {
-
-            //DEBUG
-            //DEBUG
-            //DEBUG
-            printf("KNOCKOUT.0! %i\n", r);
-
-            r = -1;
-            poms.m_state = POMS_STATE_CONFLICT;
-            break;
-          }
-
-          _update_viz_step( bms_step, opt, poms, g_ctx );
-        }
-
-        // additional heuristics for sokoban
-        //
-        if (r >= 0) {
-          do {
-
-            if (repeated_z_state(poms)) {
-              r = -1;
-              poms.m_state = POMS_STATE_CONFLICT;
-              break;
-            }
-            else if (sokoita_player_crate_count_min_check(poms) != 0) {
-              r = -1;
-              poms.m_state = POMS_STATE_CONFLICT;
-              break;
-            }
-
-            //DEBUG
-            //DEBUG
-            //DEBUG
-            _simple_stats(poms);
-
+          if (KNOCKOUT_OPT) {
             r = knockout_inadmissible_tiles(poms);
             if (r<0) {
 
               //DEBUG
               //DEBUG
               //DEBUG
-              printf("KNOCKOUT.1! %i\n", r);
+              printf("KNOCKOUT.0! %i\n", r);
 
               r = -1;
               poms.m_state = POMS_STATE_CONFLICT;
               break;
             }
+          }
 
-          } while(0);
+          _update_viz_step( bms_step, opt, poms, g_ctx );
         }
+
+        if (KNOCKOUT_OPT) {
+          // additional heuristics for sokoban
+          //
+          if (r >= 0) {
+            do {
+
+              if (repeated_z_state(poms)) {
+                r = -1;
+                poms.m_state = POMS_STATE_CONFLICT;
+                break;
+              }
+              else if (sokoita_player_crate_count_min_check(poms) != 0) {
+                r = -1;
+                poms.m_state = POMS_STATE_CONFLICT;
+                break;
+              }
+
+              //DEBUG
+              //DEBUG
+              //DEBUG
+              //_simple_stats(poms);
+
+              r = knockout_inadmissible_tiles(poms);
+              if (r<0) {
+
+                //DEBUG
+                //DEBUG
+                //DEBUG
+                printf("KNOCKOUT.1! %i\n", r);
+
+                r = -1;
+                poms.m_state = POMS_STATE_CONFLICT;
+                break;
+              }
+
+            } while(0);
+          }
+        }
+
+
 
         // BMS post step resolution processing
         //

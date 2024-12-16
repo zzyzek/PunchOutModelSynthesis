@@ -107,6 +107,6 @@ typedef struct tiled_export_type {
 
 } tiled_export_t;
 
-int exportTiledJSON(FILE *fp, tiled_export_t &T);
+int exportTiledJSON(FILE *fp, tiled_export_t &T, int hint_col=0);
 
 #endif

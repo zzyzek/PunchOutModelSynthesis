@@ -10,8 +10,10 @@
 
 #include "TiledExport.hpp"
 
-int exportTiledJSON(FILE *fp, tiled_export_t &T) {
+int exportTiledJSON(FILE *fp, tiled_export_t &T, int hint_col) {
   size_t i, j;
+
+  hint_col = ((hint_col <= 0) ? 32 : hint_col);
 
   fprintf(fp, "{\n");
   fprintf(fp, "  \"backgroundcolor\":\"%s\",\n", T.backgroundcolor.c_str());
@@ -26,7 +28,7 @@ int exportTiledJSON(FILE *fp, tiled_export_t &T) {
     for (j=0; j<T.layers[i].data.size(); j++) {
       if (j>0) { fprintf(fp, ","); }
       fprintf(fp, "%c%i",
-          ((j%32)==0) ? '\n' : ' ',
+          ((j % hint_col) == 0) ? '\n' : ' ',
           (int)T.layers[i].data[j]);
     }
     fprintf(fp, "      ],\n");

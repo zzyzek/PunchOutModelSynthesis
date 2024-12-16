@@ -197,8 +197,121 @@ the grid at every location not touched by the flood.
 
 This should be done after the player flood fill to further restrict the space.
 
+### Knockout Patterns
+
+Some patterns are higher order deadlocks.
+If they can be detected, then either an early backtrack detection can occur if the pattern
+is found or a tiles from a single cell position can be removed ("knocked out") if the rest
+of the deadlock pattern is scene.
+
+For example, the following is a higher order deadlock pattern:
+
+#### A
+
+```
+-----
+-###-
+-# $-
+-#$--
+-----
+```
+
+#### B
+
+```
+-------
+-#####-
+-# $ #-
+-------
+```
+
+#### C
+
+```
+-------
+-####--
+-#  $--
+-#$$---
+-------
+```
+
+In the example of `A` if the following patern is encountered:
+
+```
+-----
+-###-
+-# x-
+-#$--
+-----
+```
+
+Then we know we can remove any super block with a crate at its center 
+at position `x` as this leads to a deadlock.
+
+One option to is to precompute a pattern library, doing exhaustive search
+or hand crafting examples, then try to match them during run-time.
+Another is to try to create a library at run time to try and adapt
+the search to the specific level encountered.
+
+A simple test for knockout patterns can be setup by creating a small temporal example
+with the initial pattern restricted to the inital, test, knockout pattern, and the
+end pattern empty for non-wall positions.
+If the final configuration can be achieved, through simple constraint propagation,
+we know this isn't a knockout pattern.
+Alternatively, if we do find a contradiction, we know it's a deadlock pattern.
+
+The point here is that if constraint propagation can be used to find a contradiction,
+for some suitable $z$ value, we can avoid doing the full tree search while still
+having a small proof of non-validity.
+
+For example, if `A` were set up with a boundary pinned and all super tiles with the
+appropriate centers forced:
+
+```
+&&&&&&& &&&&&&&     &&&&&&& &&&&&&&
+&-----& &-----&     &-----& &-----&
+&-###-& &-###-& ... &-###-& &-###-&
+&-# $-& &-#---& ... &-#---& &-#  -&
+&-#$--& &-#---& ... &-#---& &-# --&
+&-----& &-----&     &-----& &-----&
+&&&&&&& &&&&&&&     &&&&&&& &&&&&&&
+```
+
+(`&` pinned wildcard).
+
+If there's a contradiction, we know it's a deadlock.
+
+```
+&&&&&&&&&&&     &&&&&&&&&&&
+&---------&     &---------&
+&-#######-&     &-#######-&
+&-# $   #-& ... &-#     #-&
+&---------&     &---------&
+&&&&&&&&&&&     &&&&&&&&&&&
+```
+
+Here the crate (`$`) can move within a 3 space region but not below,
+so is a deadlock configuration.
+
+
+
+
+
+Discussion
 ---
 
-All the above methods can be repeated until no more changes are made.
+The fundamental assumption is that random player and crate moves will be able to find
+solutions, given enough guiding.
+If this method works at all, it will be because the search space is constrained enough
+to make local progress with a minimum of global information.
+Knockout removal will help guide the local search and global state removal can further refine
+the search.
 
+Global information will almost surely be needed and it's unclear at this time how much
+in order to make reliable progress.
+There is the possibility of breaking down the larger problem into independent sub-problems
+but I don't see how to do that effectively.
+
+I don't have high hopes for this method as it seems like there's going to need to be more
+long term planning to find solutions.
 
