@@ -13,7 +13,7 @@
 
 #include "sokoita_poms.hpp"
 
-int KNOCKOUT_OPT = 0;
+int KNOCKOUT_OPT = 1;
 
 g_ctx_t g_ctx = {0};
 
@@ -431,12 +431,373 @@ int rt_tiled_snapshot(g_ctx_t *ctx) {
 
 //---
 
+// visualization unwinding not only the z axis but
+// the individual tile options at a cell location.
+//
+// assume cross pattern for base tiles
+//
+int rt_exploded_tiled_snapshot(g_ctx_t *ctx) {
+  int fd, r;
+  FILE *fp;
+  char fn_tmp[64];
+  std::string fn;
+
+  POMS *poms;
+
+  int64_t cell=0,
+          _W=1, _H=1, _D=1,
+          tiled_cell=0,
+          block_cell=0;
+
+  int32_t p[3],
+          rel_p[3];
+
+  int32_t tile_n,
+          tile_idx,
+          tile_val;
+
+  int32_t char_code_lookup[256] = {0};
+  int32_t tok2tile[256] = {0};
+
+  std::vector< int32_t > tile_rep;
+
+  // exploded cell is the Tiled size of an individual
+  // cell in the poms state.
+  // exploded frame is the size of the level, assuming
+  // individual exploded cell sizes.
+  //
+  // For example, poms width/height/depth 3x5x2
+  //
+  //  ___________________
+  // | .. .  . | .  .. . |
+  // |         |         |
+  // | .  .. . | .  .. . |
+  // |    .    |         |
+  // | .  .. . | .. .  . |
+  // |         |         |
+  // | .  .  . | .  .  ..|
+  // |         |         |
+  // | .. .  . | .  .  . |
+  // |         |         |
+  //  -------------------
+  //
+  //  Where dots are the individual tiles
+  //
+  //  So
+  //   ______________________
+  //  | tiled level          |
+  //  |                      |
+  //  |    __________________|
+  //  |   | exploded frame   |
+  //  |   |                  |
+  //  |   |  ________________|
+  //  |   | | exploded cell  |
+  //  |   | |                |
+  //  |   | | tile tile tile |
+  //  |   | | tile tile tile |
+  //  |   | | tile tile ...  |
+  //  |   |  ----------------|
+  //  |    ------------------|
+  //   ----------------------
+  //
+  // we assume the tiled level has been appropriately
+  // sized to accomodate our placement strategy.
+  //
+  // - Within an exploded cell, the stride is `exploded_tile_size`
+  // - Within a frame, the exploded cell stride is: 
+  //   exploded_cell_stride =
+  //     exploded_tile_size*exploded_max_tile_size + exploded_cell_margin
+  // - Within the overall level, the frame stride is
+  //   exploded_frame_stride =
+  //     [ exploded_cell_stride * W,
+  //       exploded_cell_stride * H ]
+  //
+  //
+  int exploded_tile_size[2] = {4,4};
+  int exploded_cell_max_tile_size[2] = {8,8};
+  int exploded_cell_margin[2] = {2,2};
+
+  int exploded_cell_w = 0,
+      exploded_cell_h = 0;
+
+  int exploded_frame_w = 0,
+      exploded_frame_h = 0;
+
+  int exploded_tot_w = 0,
+      exploded_tot_h = 0;
+
+  int exploded_tile_stride[2] = {0},
+      exploded_cell_stride[2] = {0},
+      exploded_frame_stride[2] = {0};
+
+  int frame_origin[2] = {0},
+      cell_origin[2] = {0},
+      tile_origin[2] = {0};
+
+  int frame_idx_size[2] = {0},
+      frame_idx[2] = {0};
+
+  int32_t _ect_row,
+          _ect_col;
+
+  int32_t tile_token_idx,
+          tile_tok,
+          dx,dy;
+  int32_t n_tile;
+  int tok;
+
+  int i;
+
+  for (i=0; i<2; i++) {
+    exploded_tile_size[i]           = ctx->exploded_tile_size[i];
+    exploded_cell_max_tile_size[i]  = ctx->exploded_cell_max_tile_size[i];
+    exploded_cell_margin[i]         = ctx->exploded_cell_margin[i];
+  }
+
+  //----
+
+  poms = ctx->poms;
+
+  _W = poms->m_quilt_size[0];
+  _H = poms->m_quilt_size[1];
+  _D = poms->m_quilt_size[2];
+
+  // find representative tile for display.
+  //
+  n_tile = 0;
+  for (tile_val=0; tile_val < poms->m_tile_count; tile_val++) {
+    if (poms->m_tile_flat_map[tile_val] > n_tile) {
+      n_tile = poms->m_tile_flat_map[tile_val];
+    }
+  }
+  n_tile++;
+
+  tile_rep.resize( n_tile, -1 );
+  for (tile_val=0; tile_val < poms->m_tile_count; tile_val++) {
+    tile_rep[ poms->m_tile_flat_map[tile_val] ] = tile_val;
+  }
+
+  for (tile_val=0; tile_val < tile_rep.size(); tile_val++) {
+    if (tile_rep[tile_val] < 0) {
+      printf("ERROR: tile_rep not filled properly %i @ [%i]\n",
+          tile_val, tile_rep[tile_val]);
+      return -1;
+    }
+  }
+
+  char_code_lookup[ '#' ] = 1;
+  char_code_lookup[ ' ' ] = 2;
+  char_code_lookup[ '.' ] = 3;
+  char_code_lookup[ '$' ] = 4;
+  char_code_lookup[ '*' ] = 5;
+  char_code_lookup[ '@' ] = 6;
+  char_code_lookup[ '+' ] = 7;
+  char_code_lookup[ 'x' ] = 8;
+  char_code_lookup[ 'X' ] = 9;
+
+  tok2tile[ '#' ] = tile_rep[1];
+  tok2tile[ ' ' ] = tile_rep[2];
+  tok2tile[ '.' ] = tile_rep[3];
+  tok2tile[ '$' ] = tile_rep[4];
+  tok2tile[ '*' ] = tile_rep[5];
+  tok2tile[ '@' ] = tile_rep[6];
+  tok2tile[ '+' ] = tile_rep[7];
+  tok2tile[ 'x' ] = tile_rep[8];
+  tok2tile[ 'X' ] = tile_rep[9];
+
+
+  // assume cross pattern
+  //
+  exploded_tile_stride[0] = 4;
+  exploded_tile_stride[1] = 4;
+
+  exploded_cell_stride[0] = exploded_cell_max_tile_size[0]*exploded_tile_size[0] + exploded_cell_margin[0];
+  exploded_cell_stride[1] = exploded_cell_max_tile_size[1]*exploded_tile_size[1] + exploded_cell_margin[1];
+
+  exploded_frame_stride[0] = exploded_cell_stride[0] * _W;
+  exploded_frame_stride[1] = exploded_cell_stride[1] * _H;
+
+  frame_idx_size[0] = ctx->explodedTiled.width / exploded_frame_stride[0];
+  frame_idx_size[1] = ctx->explodedTiled.height / exploded_frame_stride[1];
+
+  // we're going to have to worder about order, but for now we
+  // can assume standard order (x,y,z)
+  //
+  for (cell=0; cell<poms->m_quilt_cell_count; cell++) {
+    poms->cell2vec(p, cell, poms->m_quilt_size);
+
+    // z coordinate which frame (level) we're displaying
+    //
+    frame_idx[1] = p[2] / frame_idx_size[0];
+    frame_idx[0] = p[2] - (frame_idx[1] * frame_idx_size[0]);
+
+    frame_origin[0] = frame_idx[0]*exploded_frame_stride[0];
+    frame_origin[1] = frame_idx[1]*exploded_frame_stride[1];
+
+    cell_origin[0] = exploded_cell_stride[0]*p[0] + frame_origin[0];
+    cell_origin[1] = exploded_cell_stride[1]*p[1] + frame_origin[1];
+
+    tile_idx = 0;
+    tile_origin[0] = exploded_tile_stride[0]*tile_idx + cell_origin[0];
+    tile_origin[1] = exploded_tile_stride[1]*tile_idx + cell_origin[1];
+    tiled_cell = (tile_origin[1] * (ctx->explodedTiled.width)) + tile_origin[0];
+
+    // out of block region, do the simple thing
+    //
+    if ((p[0]  < poms->m_patch_region[0][0]) ||
+        (p[0] >= poms->m_patch_region[0][1]) ||
+        (p[1]  < poms->m_patch_region[1][0]) ||
+        (p[1] >= poms->m_patch_region[1][1]) ||
+        (p[2]  < poms->m_patch_region[2][0]) ||
+        (p[2] >= poms->m_patch_region[2][1])) {
+
+      if (poms->m_quilt_tile[cell] < 0) {
+        ctx->explodedTiled.layers[0].data[tiled_cell] = 0;
+        ctx->explodedTiled.layers[1].data[tiled_cell] = poms->m_tile_count;
+        continue;
+      }
+
+      ctx->explodedTiled.layers[0].data[tiled_cell] = poms->m_quilt_tile[cell];
+      ctx->explodedTiled.layers[1].data[tiled_cell] = 1;
+      continue;
+    }
+
+    rel_p[0] = p[0] - poms->m_patch_region[0][0];
+    rel_p[1] = p[1] - poms->m_patch_region[1][0];
+    rel_p[2] = p[2] - poms->m_patch_region[2][0];
+    block_cell = poms->vec2cell(rel_p);
+    if (block_cell < 0) { continue; }
+
+    // fill bounds of exploded cell with walls for better visual segmentation
+    //
+    tile_val = tok2tile['#'];
+    for (dy=0; dy<exploded_cell_stride[1]; dy++) {
+      tiled_cell = ((cell_origin[1] + dy) * (ctx->explodedTiled.width)) + cell_origin[0] + exploded_cell_stride[0]-1;
+      if ((tiled_cell < 0) ||
+          (tiled_cell >= ((ctx->explodedTiled.width)*(ctx->explodedTiled.height)))) {
+        continue;
+      }
+      ctx->explodedTiled.layers[0].data[tiled_cell] = tile_val;
+    }
+    for (dx=0; dx<exploded_cell_stride[0]; dx++) {
+      tiled_cell = ((cell_origin[1] + exploded_cell_stride[1] - 1) * (ctx->explodedTiled.width)) + cell_origin[0] + dx;
+      if ((tiled_cell < 0) ||
+          (tiled_cell >= ((ctx->explodedTiled.width)*(ctx->explodedTiled.height)))) {
+        continue;
+      }
+      ctx->explodedTiled.layers[0].data[tiled_cell] = tile_val;
+    }
+
+
+
+
+    tile_n = poms->cellSize( poms->m_plane, block_cell );
+    if (tile_n > (exploded_cell_max_tile_size[0]*exploded_cell_max_tile_size[1])) {
+      tile_n = (exploded_cell_max_tile_size[0]*exploded_cell_max_tile_size[1]);
+    }
+
+    for (tile_idx=0; tile_idx < tile_n; tile_idx++) {
+
+
+      _ect_row = tile_idx / exploded_cell_max_tile_size[0];
+      _ect_col = tile_idx % exploded_cell_max_tile_size[0];
+
+      for ( tile_token_idx=0; tile_token_idx < 5; tile_token_idx++ ) {
+
+        tile_val = poms->cellTile( poms->m_plane, block_cell, tile_idx );
+
+        // we're using the token in the name to display the super tile
+        // in the tiled map.
+        // Use our tile representative (looked up above) as the display
+        // tile, unless it's the middle token, in which case use the
+        // actual tile value.
+        //
+        // We calculate tile_origin as the place in the tiled map to place
+        // the exploded supertile.
+        //
+        if (poms->m_tile_name[tile_val].size() < 5) {
+          printf("ERROR: name not long enough for token lookup (%i) @ cell %i\n",
+              (int)poms->m_tile_name[tile_val].size(), (int)cell);
+          continue;
+        }
+
+        tok = poms->m_tile_name[tile_val][tile_token_idx];
+        switch (tile_token_idx) {
+          case 0: dx=1; dy=0; break;
+          case 1: dx=0; dy=1; break;
+          case 2: dx=1; dy=1; break;
+          case 3: dx=2; dy=1; break;
+          case 4: dx=1; dy=2; break;
+          default: dx=0; dy=0; tok='-'; break;
+        }
+
+        tile_origin[0] = (exploded_tile_stride[0]*_ect_col) + cell_origin[0] + dx;
+        tile_origin[1] = (exploded_tile_stride[1]*_ect_row) + cell_origin[1] + dy;
+
+        tiled_cell = (tile_origin[1] * (ctx->explodedTiled.width)) + tile_origin[0];
+
+        if ((tiled_cell < 0) ||
+            (tiled_cell >= ((ctx->explodedTiled.width)*(ctx->explodedTiled.height)))) {
+          printf("ERROR! rt_exploded_tiled_snapshot tiled_cell:%i out of bounds (%i)\n",
+              (int)tiled_cell, (int)((ctx->explodedTiled.width)*(ctx->explodedTiled.height)));
+          continue;
+        }
+
+        // skip middle token, otherwise lookup representative to display
+        //
+        if ( tile_token_idx != 2 ) {
+          tile_val = tok2tile[tok];
+        }
+
+        ctx->explodedTiled.layers[0].data[tiled_cell] = tile_val;
+        ctx->explodedTiled.layers[1].data[tiled_cell] = poms->cellSize( poms->m_plane, block_cell );
+
+      }
+    }
+
+  }
+
+  fn = ctx->exploded_tiled_snapshot_fn;
+  if (fn.size() == 0) { return -1; }
+
+  strncpy( fn_tmp, "snapshot.json.XXXXXX", 32 );
+
+  fd = mkstemp(fn_tmp);
+  if (fd<0) { return fd; }
+
+  fp = fdopen(fd, "w");
+  if (!fp) { return -1; }
+
+  r = exportTiledJSON( fp, ctx->explodedTiled, ctx->explodedTiled.width );
+  if (r<0) { return r; }
+
+  fclose(fp);
+  rename( fn_tmp, fn.c_str() );
+
+
+  //DEBUG
+  //DEBUG
+  //DEBUG
+  //DEBUG
+  //DEBUG
+  //DEBUG
+  printf("DEBUG!!! return to continue\n");
+  fgetc(stdin);
+
+  return r;
+}
+
 // real time sliced Tiled snapshot (for visualization).
 //
 // layer 0 - grid tile, value 0 for indeterminite
 // layer 1 - cellsize
 //
 // creates/overwrites ctx->tiled_snapshot_fn file
+//
+// this probably makes some assumptions on the supertiles and the cross
+// pattern being used in the (current) version of sokoita.
+// The idea is to unfold the z coordinate out into a Tiled map
+// for easy visualizaion.
 //
 int rt_sliced_tiled_snapshot(g_ctx_t *ctx) {
   int fd, r;
@@ -472,7 +833,6 @@ int rt_sliced_tiled_snapshot(g_ctx_t *ctx) {
   for (cell=0; cell<poms->m_quilt_cell_count; cell++) {
     poms->cell2vec(p, cell, poms->m_quilt_size);
 
-    //WIP
     q_frame_y = p[2] / q_col;
     q_frame_x = p[2] - (q_frame_y * q_col);
 
@@ -2722,6 +3082,13 @@ static int _update_viz_step( int64_t bms_step, _opt_t &opt, POMS &poms, g_ctx_t 
       if (ctx.global_callback) { ctx.global_callback(); }
     }
 
+    if (ctx.exploded_tiled_snapshot_fn.size() > 0) {
+      _r = rt_exploded_tiled_snapshot(&ctx);
+      if (_r<0) { printf("# failed to save exploded snapshot, got (%i)\n", _r); }
+      if (ctx.global_callback) { ctx.global_callback(); }
+    }
+
+
     if (ctx.patch_snapshot_fn.size() > 0) {
       _r = rt_patch_snapshot(&ctx,1);
       if (_r<0) { printf("# failed to save patch snapshot, got (%i)\n", _r); }
@@ -2777,6 +3144,12 @@ static int _update_viz_snapshots( _opt_t &opt, POMS &poms, g_ctx_t &ctx ) {
   else if (ctx.sliced_tiled_snapshot_fn.size() > 0) {
     _r = rt_sliced_tiled_snapshot(&ctx);
     if (_r<0) { printf("# failed to save sliced snapshot, got (%i)\n", _r); }
+    if (ctx.global_callback) { ctx.global_callback(); }
+  }
+  
+  if (ctx.exploded_tiled_snapshot_fn.size() > 0) {
+    _r = rt_exploded_tiled_snapshot(&ctx);
+    if (_r<0) { printf("# failed to save exploded snapshot, got (%i)\n", _r); }
     if (ctx.global_callback) { ctx.global_callback(); }
   }
 
@@ -3524,6 +3897,247 @@ static int _simple_stats(POMS &poms) {
 //
 //
 
+int knockout_path_consistency3(POMS &poms) {
+  std::vector< int32_t > tile_support_d;
+
+  int32_t i,j,k;
+
+  int32_t x,y,z,
+          a[3], b[3], c[3], d[3];
+
+  int64_t cell,
+          cell_a,
+          cell_b,
+          cell_d,
+          cell_c;
+
+  int32_t tile_a,
+          tile_b,
+          tile_c,
+          tile_d;
+
+  int32_t tile_n_a,
+          tile_n_b,
+          tile_n_c,
+          tile_n_d,
+          tile_idx_a,
+          tile_idx_b,
+          tile_idx_c,
+          tile_idx_d;
+
+  int32_t idir_ab,
+          idir_ac,
+          idir_bd,
+          idir_cd;
+
+  int32_t knockout_count=0;
+
+  tile_support_d.clear();
+  tile_support_d.resize( poms.m_tile_count, -1);
+
+  int32_t sched_idx, n_sched = 1;
+  int32_t nei_sched[][9] = {
+    { 1, 0, 0,   0, 1, 0,  1, 1, 0 }
+  };
+  int32_t idir_sched[][4] = {
+    { 0, 2, 0, 2 }
+  };
+
+  for (sched_idx=0; sched_idx < n_sched; sched_idx++) {
+    for (cell=0; cell<poms.m_cell_count; cell++) {
+      poms.cell2vec(a, cell, poms.m_quilt_size);
+      poms.cell2vec(b, cell, poms.m_quilt_size);
+      poms.cell2vec(c, cell, poms.m_quilt_size);
+      poms.cell2vec(d, cell, poms.m_quilt_size);
+
+      b[0] += nei_sched[sched_idx][0];
+      b[1] += nei_sched[sched_idx][1];
+      b[2] += nei_sched[sched_idx][2];
+
+      c[0] += nei_sched[sched_idx][3];
+      c[1] += nei_sched[sched_idx][4];
+      c[2] += nei_sched[sched_idx][5];
+
+      d[0] += nei_sched[sched_idx][6];
+      d[1] += nei_sched[sched_idx][7];
+      d[2] += nei_sched[sched_idx][8];
+
+
+      cell_a = cell;
+      cell_b = poms.vec2cell(b, poms.m_quilt_size);
+      cell_c = poms.vec2cell(c, poms.m_quilt_size);
+      cell_d = poms.vec2cell(d, poms.m_quilt_size);
+
+      idir_ab = idir_sched[sched_idx][0];
+      idir_ac = idir_sched[sched_idx][1];
+      idir_bd = idir_sched[sched_idx][2];
+      idir_cd = idir_sched[sched_idx][3];
+
+      if ((cell_b < 0) || (cell_c < 0) || (cell_d < 0)) { continue; }
+
+      for (i=0; i<poms.m_tile_count; i++) { tile_support_d[i] = -1; }
+
+      tile_n_d = poms.cellSize( poms.m_plane, cell_d );
+      for (tile_idx_d=0; tile_idx_d < tile_n_d; tile_idx_d++) {
+        tile_d = poms.cellTile( poms.m_plane, cell_d, tile_idx_d );
+        tile_support_d[tile_d] = 0;
+      }
+
+      tile_n_a = poms.cellSize( poms.m_plane, cell_a );
+      tile_n_b = poms.cellSize( poms.m_plane, cell_b );
+      tile_n_c = poms.cellSize( poms.m_plane, cell_c );
+      tile_n_d = poms.cellSize( poms.m_plane, cell_d );
+
+      for (tile_idx_a=0; tile_idx_a < tile_n_a; tile_idx_a++) {
+        for (tile_idx_b=0; tile_idx_b < tile_n_b; tile_idx_b++) {
+          for (tile_idx_c=0; tile_idx_c < tile_n_c; tile_idx_c++) {
+            for (tile_idx_d=0; tile_idx_d < tile_n_d; tile_idx_d++) {
+              tile_a = poms.cellTile( poms.m_plane, cell_a, tile_idx_a );
+              tile_b = poms.cellTile( poms.m_plane, cell_b, tile_idx_b );
+              tile_c = poms.cellTile( poms.m_plane, cell_c, tile_idx_c );
+              tile_d = poms.cellTile( poms.m_plane, cell_d, tile_idx_d );
+
+              if ( (poms.F(tile_a, tile_b, idir_ab) > 0.5) &&
+                   (poms.F(tile_a, tile_c, idir_ac) > 0.5) &&
+                   (poms.F(tile_b, tile_d, idir_bd) > 0.5) &&
+                   (poms.F(tile_c, tile_d, idir_cd) > 0.5) ) {
+                tile_support_d[tile_d]++;
+              }
+            }
+          }
+        }
+      }
+
+      for (tile_d=0; tile_d < tile_n_d; tile_d++) {
+        if (tile_support_d[tile_d] == 0) {
+          knockout_count++;
+          printf("knockout %i@[%i,%i,%i]{%i} (sched_idx: %i)\n",
+              tile_d, d[0], d[1], d[2], (int)cell_d, sched_idx);
+        }
+      }
+      
+
+
+    }
+
+  }
+
+  printf("knockout_count3: %i\n", knockout_count);
+
+  return knockout_count;
+}
+
+int knockout_path_consistency(POMS &poms) {
+  std::vector< int32_t > tile_support_c;
+
+  int32_t i,j,k;
+
+  int32_t x,y,z,
+          v[3], u[3], w[3];
+
+  int64_t cell,
+          cell_a,
+          cell_b,
+          cell_c;
+
+  int32_t tile_a,
+          tile_b,
+          tile_c;
+
+  int32_t tile_n_a,
+          tile_n_b,
+          tile_n_c,
+          tile_idx_a,
+          tile_idx_b,
+          tile_idx_c;
+
+  int32_t idir_ac,
+          idir_bc;
+
+  int32_t knockout_count=0;
+
+  tile_support_c.clear();
+  tile_support_c.resize( poms.m_tile_count, -1);
+
+  int32_t sched_idx, n_sched = 2;
+  int32_t nei_sched[][6] = {
+    { 1, 1, 0,   1, 0, 0 },
+    { 1, 1, 0,   0, 1, 0 },
+  };
+  int32_t idir_sched[][2] = {
+    { 0, 2 },
+    { 1, 3 }
+  };
+
+  for (sched_idx=0; sched_idx < n_sched; sched_idx++) {
+    for (cell=0; cell<poms.m_cell_count; cell++) {
+      poms.cell2vec(v, cell, poms.m_quilt_size);
+      poms.cell2vec(u, cell, poms.m_quilt_size);
+      poms.cell2vec(w, cell, poms.m_quilt_size);
+
+      u[0] += nei_sched[sched_idx][0];
+      u[1] += nei_sched[sched_idx][1];
+      u[2] += nei_sched[sched_idx][2];
+
+      w[0] += nei_sched[sched_idx][3];
+      w[1] += nei_sched[sched_idx][4];
+      w[2] += nei_sched[sched_idx][5];
+
+
+      cell_a = cell;
+      cell_b = poms.vec2cell(u, poms.m_quilt_size);
+      cell_c = poms.vec2cell(w, poms.m_quilt_size);
+
+      idir_ac = idir_sched[sched_idx][0];
+      idir_bc = idir_sched[sched_idx][1];
+
+      if ((cell_b < 0) || (cell_c < 0)) { continue; }
+
+      for (i=0; i<poms.m_tile_count; i++) { tile_support_c[i] = -1; }
+
+      tile_n_c = poms.cellSize( poms.m_plane, cell_c );
+      for (tile_idx_c=0; tile_idx_c < tile_n_c; tile_idx_c++) {
+        tile_c = poms.cellTile( poms.m_plane, cell_c, tile_idx_c );
+        tile_support_c[tile_c] = 0;
+      }
+
+      tile_n_a = poms.cellSize( poms.m_plane, cell_a );
+      tile_n_b = poms.cellSize( poms.m_plane, cell_b );
+
+      for (tile_idx_a=0; tile_idx_a < tile_n_a; tile_idx_a++) {
+        for (tile_idx_b=0; tile_idx_b < tile_n_b; tile_idx_b++) {
+          for (tile_idx_c=0; tile_idx_c < tile_n_c; tile_idx_c++) {
+            tile_a = poms.cellTile( poms.m_plane, cell_a, tile_idx_a );
+            tile_b = poms.cellTile( poms.m_plane, cell_b, tile_idx_b );
+            tile_c = poms.cellTile( poms.m_plane, cell_c, tile_idx_c );
+
+            if ( (poms.F(tile_a, tile_c, idir_ac) > 0.5) &&
+                 (poms.F(tile_b, tile_c, idir_bc) > 0.5) ) {
+              tile_support_c[tile_c]++;
+            }
+          }
+        }
+      }
+
+      for (tile_c=0; tile_c < tile_n_c; tile_c++) {
+        if (tile_support_c[tile_c] == 0) {
+          knockout_count++;
+          printf("knockout %i@[%i,%i,%i]{%i} (sched_idx: %i)\n",
+              tile_c, w[0], w[1], w[2], (int)cell_c, sched_idx);
+        }
+      }
+      
+
+
+    }
+
+  }
+
+  printf("knockout_count: %i\n", knockout_count);
+
+  return knockout_count;
+}
+
 // WIP!!
 //
 int knockout_inadmissible_tiles(POMS &poms) {
@@ -4163,7 +4777,7 @@ _repeated_z:
 //---
 
 
-int poms_main(int argc, char **argv) {
+int sokoita_main(int argc, char **argv) {
   int i, ii,
       r, _ret, ret, _r,
       sep = ',',
@@ -4317,6 +4931,14 @@ int poms_main(int argc, char **argv) {
               poms.m_tile_support_option = POMS_OPTIMIZATION_AC4_TIER6_M;
             }
 
+          }
+        }
+
+        else if (opt_str.find("exploded-tiled-snapshot-file=", 0)==0) {
+          splitStr(tok, opt_str, '=');
+          if (tok.size()>1) {
+            g_ctx.exploded_tiled_snapshot_fn = tok[1];;
+            if (opt.viz_step <= 0) { opt.viz_step = 10; }
           }
         }
 
@@ -4675,16 +5297,6 @@ int poms_main(int argc, char **argv) {
     poms.m_entropy_rand_exponent = opt.rand_exponent;
   }
 
-  /*
-  poms.m_block_size[0] = ((opt.block_size[0] > 0) ? opt.block_size[0] : -1);
-  poms.m_block_size[1] = ((opt.block_size[1] > 0) ? opt.block_size[1] : -1);
-  poms.m_block_size[2] = ((opt.block_size[2] > 0) ? opt.block_size[2] : -1);
-
-  poms.m_soften_size[0] = ((opt.soften_size[0] > 0) ? opt.soften_size[0] : -1);
-  poms.m_soften_size[1] = ((opt.soften_size[1] > 0) ? opt.soften_size[1] : -1);
-  poms.m_soften_size[2] = ((opt.soften_size[2] > 0) ? opt.soften_size[2] : -1);
-  */
-
   //----
   // better default?
   //
@@ -4692,10 +5304,6 @@ int poms_main(int argc, char **argv) {
   poms.m_block_size[0] = ((opt.block_size[0] > 0) ? opt.block_size[0] : 1);
   poms.m_block_size[1] = ((opt.block_size[1] > 0) ? opt.block_size[1] : 1);
   poms.m_block_size[2] = ((opt.block_size[2] > 0) ? opt.block_size[2] : 1);
-
-  //poms.m_soften_size[0] = ((opt.soften_size[0] > 0) ? opt.soften_size[0] : 1);
-  //poms.m_soften_size[1] = ((opt.soften_size[1] > 0) ? opt.soften_size[1] : 1);
-  //poms.m_soften_size[2] = ((opt.soften_size[2] > 0) ? opt.soften_size[2] : 1);
 
   opt.soften_window.soften_min[0] = ((opt.soften_window.soften_min[0] > 0) ? opt.soften_window.soften_min[0] : 1);
   opt.soften_window.soften_min[1] = ((opt.soften_window.soften_min[1] > 0) ? opt.soften_window.soften_min[1] : 1);
@@ -4714,14 +5322,6 @@ int poms_main(int argc, char **argv) {
   poms.m_soften_size[0] = opt.soften_window.soften_min[0];
   poms.m_soften_size[1] = opt.soften_window.soften_min[1];
   poms.m_soften_size[2] = opt.soften_window.soften_min[2];
-
-  /*
-  opt.window_fail.resize(128);
-  opt.window_fail_s = 0;
-  opt.window_fail_n = 0;
-  opt.window_fail_threshold[0] = 10;
-  opt.window_fail_threshold[1] = 128-10;
-  */
 
   //
   //----
@@ -4846,15 +5446,6 @@ int poms_main(int argc, char **argv) {
     poms.m_block_choice_policy = opt.block_choice_policy;
   }
 
-  //------------------------------------
-  //              _ _ _   _
-  //   __ _ _   _(_) | |_(_)_ __   __ _
-  //  / _` | | | | | | __| | '_ \ / _` |
-  // | (_| | |_| | | | |_| | | | | (_| |
-  //  \__, |\__,_|_|_|\__|_|_| |_|\__, |
-  //     |_|                      |___/
-  //------------------------------------
-
 
   //---
   //---
@@ -4972,10 +5563,103 @@ int poms_main(int argc, char **argv) {
     g_ctx.m_conflict_grid.resize( poms.m_quilt_cell_count, 0 );
   }
 
+  else if (g_ctx.exploded_tiled_snapshot_fn.size() > 0) {
+
+    double disp_f = 1.3;
+    int64_t _W = poms.m_quilt_size[0],
+            _H = poms.m_quilt_size[1],
+            _D = poms.m_quilt_size[2];
+    int64_t n_cell      = _W*_H*_D;
+    double  side_cell_d = sqrt( (double)n_cell );
+    int64_t side_frame_col = (int64_t)(disp_f*side_cell_d);
+    int64_t side_frame_row = (int64_t)(side_cell_d/disp_f);
+
+    int64_t cell_col = 1,
+            cell_row = 1;
+
+    int64_t q_col = (int64_t)(side_frame_col / (double)_W);
+    int64_t q_row = (int64_t)(side_frame_row / (double)_H);
+
+    if (q_col == 0) { q_col = 1; }
+    if (q_row == 0) { q_row = 1; }
+    while ( (q_col*q_row) < _D ) { q_row++; }
+
+    int32_t cell_stride[2] = {0},
+            frame_stride[2] = {0};
+
+    g_ctx.exploded_tile_size[0] = 4;
+    g_ctx.exploded_tile_size[1] = 4;
+
+    g_ctx.exploded_cell_max_tile_size[0] = 3;
+    g_ctx.exploded_cell_max_tile_size[1] = 3;
+
+    g_ctx.exploded_cell_margin[0] = 2;
+    g_ctx.exploded_cell_margin[1] = 2;
+
+    cell_stride[0] = g_ctx.exploded_cell_max_tile_size[0]*g_ctx.exploded_tile_size[0] + g_ctx.exploded_cell_margin[0];
+    cell_stride[1] = g_ctx.exploded_cell_max_tile_size[1]*g_ctx.exploded_tile_size[1] + g_ctx.exploded_cell_margin[1];
+    frame_stride[0] = cell_stride[0] * _W;
+    frame_stride[1] = cell_stride[1] * _H;
+
+    int64_t cell_width  = q_col*frame_stride[0];
+    int64_t cell_height = q_row*frame_stride[1];
+
+    g_ctx.explodedTiled.tilesets.resize(1);
+    g_ctx.explodedTiled.layers.resize(2);
+
+    if (poms.m_verbose >= POMS_VERBOSE_ITER) {
+      printf("# exploded snapshot: fn:'%s', whd{%i,%i,%i} n_cell:%i, cell_stride[%i,%i], frame_stride[%i,%i] cell_{w,h}{%i,%i}\n",
+          g_ctx.exploded_tiled_snapshot_fn.c_str(),
+          (int)_W, (int)_H, (int)_D,
+          (int)n_cell,
+          (int)cell_stride[0], (int)cell_stride[1],
+          (int)frame_stride[0], (int)frame_stride[1],
+          (int)cell_width, (int)cell_height);
+    }
+
+    g_ctx.explodedTiled.width   = cell_width;
+    g_ctx.explodedTiled.height  = cell_height;
+
+    g_ctx.explodedTiled.tilewidth   = poms.m_tileset_ctx.tilewidth;
+    g_ctx.explodedTiled.tileheight  = poms.m_tileset_ctx.tileheight;
+
+    g_ctx.explodedTiled.tilesets[0].tilewidth   = poms.m_tileset_ctx.tilewidth;
+    g_ctx.explodedTiled.tilesets[0].tileheight  = poms.m_tileset_ctx.tileheight;
+    g_ctx.explodedTiled.tilesets[0].tilecount   = poms.m_tileset_ctx.tilecount;
+    g_ctx.explodedTiled.tilesets[0].image       = poms.m_tileset_ctx.image;
+
+    g_ctx.explodedTiled.layers[0].width   = g_ctx.explodedTiled.width;
+    g_ctx.explodedTiled.layers[0].height  = g_ctx.explodedTiled.height;
+    g_ctx.explodedTiled.layers[0].data.resize( g_ctx.explodedTiled.width * g_ctx.explodedTiled.height );
+
+    g_ctx.explodedTiled.layers[1].width   = g_ctx.explodedTiled.width;
+    g_ctx.explodedTiled.layers[1].height  = g_ctx.explodedTiled.height;
+    g_ctx.explodedTiled.layers[1].data.resize( g_ctx.explodedTiled.width * g_ctx.explodedTiled.height );
+    g_ctx.explodedTiled.layers[1].name    = "cellSize";
+    g_ctx.explodedTiled.layers[1].visible = false;
+
+    g_ctx.m_conflict_grid.resize( poms.m_quilt_cell_count, 0 );
+
+    //DEBUG
+    //DEBUG
+    //DEBUG
+    //DEBUG
+    printf("DEBUG, explodedTiled data structure initialized, hit return to continue\n");
+    fgetc(stdin);
+  }
 
   //---
   //---
   //---
+
+  //------------------------------------
+  //              _ _ _   _
+  //   __ _ _   _(_) | |_(_)_ __   __ _
+  //  / _` | | | | | | __| | '_ \ / _` |
+  // | (_| | |_| | | | |_| | | | | (_| |
+  //  \__, |\__,_|_|_|\__|_|_| |_|\__, |
+  //     |_|                      |___/
+  //------------------------------------
 
 
   quilt_s[0] = 0;
@@ -5179,6 +5863,13 @@ int poms_main(int argc, char **argv) {
           _update_viz_step( bms_step, opt, poms, g_ctx );
         }
 
+        //EXPERIMENTAL
+        //EXPERIMENTAL
+        //EXPERIMENTAL
+        if (r >= 0) {
+          knockout_path_consistency3(poms);
+        }
+
         if (KNOCKOUT_OPT) {
           // additional heuristics for sokoban
           //
@@ -5331,7 +6022,7 @@ int poms_main(int argc, char **argv) {
 
 #ifndef CUSTOM_MAIN
 int main(int argc, char **argv) {
-  return poms_main(argc, argv);
+  return sokoita_main(argc, argv);
 }
 #endif
 

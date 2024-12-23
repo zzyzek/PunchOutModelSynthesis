@@ -22,7 +22,7 @@
 #include "auxExport.hpp"
 #include "TiledExport.hpp"
 
-#define SOKOITA_POMS_BIN_VERSION "0.18.6"
+#define SOKOITA_POMS_BIN_VERSION "0.18.8"
 
 enum NOISE_TYPE {
   NOISE_TYPE_NONE = 0,
@@ -48,6 +48,12 @@ typedef struct g_ctx_type {
   std::string tiled_snapshot_fn;
   std::string sliced_tiled_snapshot_fn;
   std::string patch_snapshot_fn;
+  std::string exploded_tiled_snapshot_fn;
+
+  tiled_export_t explodedTiled;
+  int32_t exploded_tile_size[2],
+          exploded_cell_max_tile_size[2],
+          exploded_cell_margin[2];
 
   // hack for now that lets other programs that call
   // poms_main have access to a callback in case they
