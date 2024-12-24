@@ -3897,8 +3897,29 @@ static int _simple_stats(POMS &poms) {
 //
 //
 
+static int32_t dxyz2idir(int32_t dx, int32_t dy, int32_t dz) {
+  int32_t s = 0;
+  s += ((dx < 0) ? (-dx) : dx);
+  s += ((dy < 0) ? (-dy) : dy);
+  s += ((dz < 0) ? (-dz) : dz);
+  if (s != 1) { return -1; }
+
+  if (dx ==  1) { return 0; }
+  if (dx == -1) { return 1; }
+  if (dy ==  1) { return 2; }
+  if (dy == -1) { return 3; }
+  if (dz ==  1) { return 4; }
+  if (dz == -1) { return 5; }
+
+  return -1;
+}
+
 int knockout_path_consistency3(POMS &poms) {
   std::vector< int32_t > tile_support_d;
+
+  std::vector< int64_t > cell_tile_queue;
+
+  int ret=0;
 
   int32_t i,j,k;
 
@@ -3933,15 +3954,27 @@ int knockout_path_consistency3(POMS &poms) {
   int32_t knockout_count=0;
 
   tile_support_d.clear();
-  tile_support_d.resize( poms.m_tile_count, -1);
+  tile_support_d.resize( 6*poms.m_tile_count, -1);
 
-  int32_t sched_idx, n_sched = 1;
+
+  // teset all diagnoal entries relative to 'a' (base) tile
+  // at (relative) (0,0,0)
+  //
+  // x,y,z, assuming 'a' tile is at (0,0,0)
+  //
+  // last element is the one being tested
+  //
+  int32_t sched_idx,
+          n_sched = 4;
   int32_t nei_sched[][9] = {
-    { 1, 0, 0,   0, 1, 0,  1, 1, 0 }
+    { 1, 0, 0,   0, 1, 0,  1, 1, 0 },  // +x, +y +x+y
+    { 1, 0, 0,   0,-1, 0,  1,-1, 0 },  // +x, -y,+x-y
+    {-1, 0, 0,   0, 1, 0, -1, 1, 0 },  // -x, +y,-x+y
+    {-1, 0, 0,   0,-1, 0, -1,-1, 0 },  // -x, +y,-x-y
   };
-  int32_t idir_sched[][4] = {
-    { 0, 2, 0, 2 }
-  };
+
+  //poms.cellTileVisitedClear( poms.m_plane );
+  //poms.cellTileQueueClear( poms.m_plane );
 
   for (sched_idx=0; sched_idx < n_sched; sched_idx++) {
     for (cell=0; cell<poms.m_cell_count; cell++) {
@@ -3968,10 +4001,18 @@ int knockout_path_consistency3(POMS &poms) {
       cell_c = poms.vec2cell(c, poms.m_quilt_size);
       cell_d = poms.vec2cell(d, poms.m_quilt_size);
 
-      idir_ab = idir_sched[sched_idx][0];
-      idir_ac = idir_sched[sched_idx][1];
-      idir_bd = idir_sched[sched_idx][2];
-      idir_cd = idir_sched[sched_idx][3];
+      idir_ab = dxyz2idir( b[0]-a[0], b[1]-a[1], b[2]-a[2] );
+      idir_ac = dxyz2idir( c[0]-a[0], c[1]-a[1], c[2]-a[2] );
+      idir_bd = dxyz2idir( d[0]-b[0], d[1]-b[1], d[2]-b[2] );
+      idir_cd = dxyz2idir( d[0]-c[0], d[1]-c[1], d[2]-c[2] );
+
+      if ((idir_ab < 0) || (idir_ac < 0) ||
+          (idir_bd < 0) || (idir_cd < 0)) {
+        printf("ERROR: invalid idir @ a[%i,%i,%i]{%i} (idir_{ab,ac,bd,cd}: %i,%i,%i,%i)\n",
+            a[0], a[1], a[2], (int)cell,
+            idir_ab, idir_ac, idir_bd, idir_cd);
+        continue;
+      }
 
       if ((cell_b < 0) || (cell_c < 0) || (cell_d < 0)) { continue; }
 
@@ -3997,36 +4038,107 @@ int knockout_path_consistency3(POMS &poms) {
               tile_c = poms.cellTile( poms.m_plane, cell_c, tile_idx_c );
               tile_d = poms.cellTile( poms.m_plane, cell_d, tile_idx_d );
 
+
               if ( (poms.F(tile_a, tile_b, idir_ab) > 0.5) &&
                    (poms.F(tile_a, tile_c, idir_ac) > 0.5) &&
                    (poms.F(tile_b, tile_d, idir_bd) > 0.5) &&
                    (poms.F(tile_c, tile_d, idir_cd) > 0.5) ) {
                 tile_support_d[tile_d]++;
               }
+
             }
           }
         }
       }
 
-      for (tile_d=0; tile_d < tile_n_d; tile_d++) {
+      for (tile_idx_d=0; tile_idx_d < tile_n_d; tile_idx_d++) {
+        tile_d = poms.cellTile( poms.m_plane, cell_d, tile_idx_d );
+
+        if (tile_support_d[tile_d] < 0) {
+          printf("ERROR: sanity, tile_d(%i) @ [%i,%i,%i]{%i} negative support (%i)\n",
+              tile_d, d[0], d[1], d[2], (int)cell_d, tile_support_d[tile_d]);
+        }
+
         if (tile_support_d[tile_d] == 0) {
-          knockout_count++;
-          printf("knockout %i@[%i,%i,%i]{%i} (sched_idx: %i)\n",
-              tile_d, d[0], d[1], d[2], (int)cell_d, sched_idx);
+          if ( !poms.cellTileVisited( poms.m_plane, cell_d, tile_d ) ) {
+
+            //WIP
+            //WIP
+            //WIP
+            //WIP
+            //WIP
+            //WIP
+            //
+            //this won't work...
+            //we've integrated ac4update too tightly so removing tiles becomes more
+            //tricky than simply pushing them on the queue and hopeing things will
+            //work out.
+            //
+            //poms.markAC4Dirty( poms.m_plane, cell_d );
+
+            //poms.cellTileVisited( poms.m_plane, cell_d, tile_d, 1 );
+            //poms.cellTileQueuePush( poms.m_plane, cell_d, tile_d );
+
+
+            cell_tile_queue.push_back( cell_d );
+            cell_tile_queue.push_back( tile_d );
+
+            knockout_count++;
+
+            if (poms.m_verbose >= POMS_VERBOSE_DEBUG1) {
+              printf("KNOCKOUT tile:%i@[%i,%i,%i]{%i} (sched_idx: %i)\n",
+                  tile_d, d[0], d[1], d[2], (int)cell_d, sched_idx);
+            }
+
+          }
+
         }
       }
       
-
-
     }
-
   }
 
-  printf("knockout_count3: %i\n", knockout_count);
+  //WIP
+  //WIP
+  //WIP
+  //WIP
+  if (cell_tile_queue.size() > 0) {
+    printf("knocked out %i (path3), got %i, hit enter to continue\n",
+        knockout_count, ret);
 
-  return knockout_count;
+    for (i=0; i<cell_tile_queue.size(); i+=2) {
+      cell_d = cell_tile_queue[i];
+      tile_d = (int32_t)cell_tile_queue[i+1];
+
+      poms.removeTile( poms.m_plane, cell_d, tile_d );
+    }
+
+    poms.AC4Init();
+    return 1;
+  }
+
+  
+  return 0;
+
+  if (knockout_count > 0) {
+
+    ret = poms.AC4Update();
+
+    //DEBUG
+    //DEBUG
+    //DEBUG
+    printf("knocked out %i (path3), got %i, hit enter to continue\n",
+        knockout_count, ret);
+    fgetc(stdin);
+
+    if (ret < 0) { return ret; }
+    ret = 1;
+  }
+
+  return ret;
 }
 
+/*
 int knockout_path_consistency(POMS &poms) {
   std::vector< int32_t > tile_support_c;
 
@@ -4068,6 +4180,9 @@ int knockout_path_consistency(POMS &poms) {
     { 0, 2 },
     { 1, 3 }
   };
+
+  poms.cellTileVisitedClear( poms.m_plane );
+  poms.cellTileQueueClear( poms.m_plane );
 
   for (sched_idx=0; sched_idx < n_sched; sched_idx++) {
     for (cell=0; cell<poms.m_cell_count; cell++) {
@@ -4127,6 +4242,25 @@ int knockout_path_consistency(POMS &poms) {
         }
       }
       
+      for (cell = 0; cell < poms.m_cell_count; cell++) {
+        poms.cell2vec(v, cell, poms.m_quilt_size);
+        if (!_cell_in_patch(poms, v[0], v[1], v[2])) { continue; }
+        if (dijkstra_map[0][cell] >= 0) { continue; }
+
+        n_tile = poms.cellSize( poms.m_plane, cell );
+        for (tile_idx = 0; tile_idx < n_tile; tile_idx++) {
+          tile_val = poms.cellTile( poms.m_plane, cell, tile_idx );
+          if (poms.m_tile_name[tile_val].size() < 3) { continue; }
+
+            poms.cellTileVisited( poms.m_plane, cell, tile_val, 1 );
+            poms.cellTileQueuePush( poms.m_plane, cell, tile_val );
+
+            knockout_count++;
+          }
+        }
+
+      }
+
 
 
     }
@@ -4137,6 +4271,7 @@ int knockout_path_consistency(POMS &poms) {
 
   return knockout_count;
 }
+*/
 
 // WIP!!
 //
@@ -5867,7 +6002,12 @@ int sokoita_main(int argc, char **argv) {
         //EXPERIMENTAL
         //EXPERIMENTAL
         if (r >= 0) {
-          knockout_path_consistency3(poms);
+          int _kr = 0;
+          do {
+            _kr = knockout_path_consistency3(poms);
+            printf("!! _kr: %i\n", _kr);
+          } while (_kr!=0);
+
         }
 
         if (KNOCKOUT_OPT) {
