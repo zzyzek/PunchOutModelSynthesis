@@ -3965,12 +3965,22 @@ int knockout_path_consistency3(POMS &poms) {
   // last element is the one being tested
   //
   int32_t sched_idx,
-          n_sched = 4;
+          n_sched = 12;
   int32_t nei_sched[][9] = {
     { 1, 0, 0,   0, 1, 0,  1, 1, 0 },  // +x, +y +x+y
     { 1, 0, 0,   0,-1, 0,  1,-1, 0 },  // +x, -y,+x-y
     {-1, 0, 0,   0, 1, 0, -1, 1, 0 },  // -x, +y,-x+y
     {-1, 0, 0,   0,-1, 0, -1,-1, 0 },  // -x, +y,-x-y
+
+    { 1, 0, 0,   0, 0, 1,  1, 0, 1 },  // +x, +z,+x+z
+    { 1, 0, 0,   0, 0,-1,  1, 0,-1 },  // +x, -z,+x-z
+    {-1, 0, 0,   0, 0, 1, -1, 0, 1 },  // -x, +z,-x+z
+    {-1, 0, 0,   0, 0,-1, -1, 0,-1 },  // -x, -z,-x-z
+
+    { 0, 1, 0,   0, 0, 1,  0, 1, 1 },  // +y, +z,+y+z
+    { 0, 1, 0,   0, 0,-1,  0, 1,-1 },  // +y, -z,+y-z
+    { 0,-1, 0,   0, 0, 1,  0,-1, 1 },  // -y, +z,-y+z
+    { 0,-1, 0,   0, 0,-1,  0,-1,-1 },  // -y, -z,-y-z
   };
 
   //poms.cellTileVisitedClear( poms.m_plane );
@@ -4113,8 +4123,10 @@ int knockout_path_consistency3(POMS &poms) {
       poms.removeTile( poms.m_plane, cell_d, tile_d );
     }
 
-    poms.AC4Init();
-    return 1;
+    ret = poms.AC4Init();
+    if (ret == 0) { return 1; }
+    return ret;
+    //return 1;
   }
 
   
@@ -5698,7 +5710,7 @@ int sokoita_main(int argc, char **argv) {
     g_ctx.m_conflict_grid.resize( poms.m_quilt_cell_count, 0 );
   }
 
-  else if (g_ctx.exploded_tiled_snapshot_fn.size() > 0) {
+  if (g_ctx.exploded_tiled_snapshot_fn.size() > 0) {
 
     double disp_f = 1.3;
     int64_t _W = poms.m_quilt_size[0],
@@ -5969,6 +5981,7 @@ int sokoita_main(int argc, char **argv) {
 
           // additional heuristics for sokoban
           //
+          /*
           if (repeated_z_state(poms)) {
             r = -1;
             poms.m_state = POMS_STATE_CONFLICT;
@@ -5994,6 +6007,7 @@ int sokoita_main(int argc, char **argv) {
               break;
             }
           }
+          */
 
           _update_viz_step( bms_step, opt, poms, g_ctx );
         }
@@ -6005,11 +6019,19 @@ int sokoita_main(int argc, char **argv) {
           int _kr = 0;
           do {
             _kr = knockout_path_consistency3(poms);
-            printf("!! _kr: %i\n", _kr);
-          } while (_kr!=0);
+            printf("!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+          } while (_kr > 0);
+
+          if (_kr < 0) {
+
+            poms.m_state = POMS_STATE_CONFLICT;
+
+            r = -1;
+          }
 
         }
 
+        /*
         if (KNOCKOUT_OPT) {
           // additional heuristics for sokoban
           //
@@ -6048,6 +6070,7 @@ int sokoita_main(int argc, char **argv) {
             } while(0);
           }
         }
+        */
 
 
 

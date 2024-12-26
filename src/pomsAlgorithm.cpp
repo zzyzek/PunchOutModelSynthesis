@@ -2503,12 +2503,25 @@ int POMS::BMSEnd(void) {
   int r=0, ret=-1;
   int64_t rez;
 
+  int32_t conflict_xyz[3];
+
   m_seq++;
 
   if (m_verbose >= POMS_VERBOSE_RUN) {
-    printf("BMSEnd: m_state:%s(%i), m_retry_count:%i/%i\n",
+    printf("BMSEnd: m_state:%s(%i), m_retry_count:%i/%i",
         stateDescr(m_state),
         (int)m_state, (int)m_retry_count, (int)m_retry_max);
+
+    if (m_state == POMS_STATE_CONFLICT) {
+      cell2vec(conflict_xyz, m_conflict_cell);
+      printf(", conflict cell:[%i,%i,%i]{%i}, tile:%i, idir:%i, type:%i",
+          (int)conflict_xyz[0], (int)conflict_xyz[1], (int)conflict_xyz[2],
+          (int)m_conflict_cell, (int)m_conflict_tile,
+          (int)m_conflict_idir, (int)m_conflict_type);
+
+    }
+
+    printf("\n");
   }
 
   if (m_verbose >= POMS_VERBOSE_DEBUG) {
