@@ -548,6 +548,11 @@ int rt_exploded_tiled_snapshot(g_ctx_t *ctx) {
 
   int i;
 
+  // sanity
+  //
+  if (ctx->exploded_tiled_snapshot_fn.size() == 0) { return -1; }
+
+
   for (i=0; i<2; i++) {
     exploded_tile_size[i]           = ctx->exploded_tile_size[i];
     exploded_cell_max_tile_size[i]  = ctx->exploded_cell_max_tile_size[i];
@@ -773,16 +778,6 @@ int rt_exploded_tiled_snapshot(g_ctx_t *ctx) {
 
   fclose(fp);
   rename( fn_tmp, fn.c_str() );
-
-
-  //DEBUG
-  //DEBUG
-  //DEBUG
-  //DEBUG
-  //DEBUG
-  //DEBUG
-  printf("DEBUG!!! return to continue\n");
-  fgetc(stdin);
 
   return r;
 }
@@ -3914,6 +3909,373 @@ static int32_t dxyz2idir(int32_t dx, int32_t dy, int32_t dz) {
   return -1;
 }
 
+//----
+//----
+//----
+
+// increment, with carry, vector
+//
+static int _idx_vec_incr( int32_t *vec_idx, int32_t *vec_idx_n, int32_t vec_size ) {
+  int32_t idx=0,
+          carry = 1;
+
+  for (idx=0, carry=1; ((idx < vec_size) && (carry==1)) ; idx++ ) {
+    carry = 0;
+    vec_idx[idx]++;
+    if (vec_idx[idx] >= vec_idx_n[idx]) {
+      vec_idx[idx] = 0;
+      carry = 1;
+    }
+  }
+
+  return carry;
+}
+
+// returns 0 if vector index is all 0
+//
+static int _idx_vec_zero( int32_t *vec_idx, int32_t vec_size ) {
+  int i;
+
+  for (i=0; i<vec_size; i++) {
+    if (vec_idx[i] != 0) { return 0; }
+  }
+
+  return 1;
+}
+
+// Generalized path consistency specifically for blocks.
+//
+// Constraint block (cblock) has a size chosen with
+// the assumption it's a rectangular cuboid.
+//
+// For a cblock location, fix a test cell within it
+// and keep a counter of support for all tiles at
+// that test cell location.
+// Enumerate all other tiles in the cblock, making
+// sure they respect their nearest neighbor constraints,
+// and incrementing the test support vector.
+//
+// Once the enumeration is complete, see if there are any
+// 0 support tile entries in the test support vector.
+// If so, they can beremoved.
+//
+// There are many optimizations that can be done.
+// We're in the validation stage so keeping the cblock
+// small and doing brute force for now.
+//
+
+static int _debug_cblock( POMS &poms, int32_t *tile_idx, int32_t *tile_val, int32_t *tile_n, int32_t *sz) {
+  int32_t z, y, x;
+  int64_t cell;
+
+  for (z=0; z<sz[2]; z++) {
+    printf("\nz%i:\n", z);
+    for (y=0; y<sz[1]; y++) {
+      printf("y%i:", y);
+      for (x=0; x<sz[0]; x++) {
+        cell = poms.xyz2cell(x,y,z, sz);
+        printf(" %4i{i:%3i/%3i}", tile_val[cell], tile_idx[cell], tile_n[cell]);
+      }
+      printf("\n");
+    }
+    printf("\n");
+  }
+  printf("\n");
+  return 0;
+}
+
+// PROBABLY BUGGY, ALWAYS KNOCKS OUT, ALWAYS GETS INTO
+// CONFLICT STATE
+//
+int knockout_npath_consistency(POMS &poms, int32_t knx, int32_t kny, int32_t knz, int64_t knmax) {
+  int ret=0,
+      _r=0;
+  int32_t i,j,k;
+
+  std::vector< std::vector< int32_t > > tile_support;
+  std::vector< int64_t > cell_tile_queue;
+
+  std::vector< int32_t >  cblock_tile_idx,
+                          cblock_tile_n,
+                          cblock_tile_val;
+  int32_t grid_pos[3],
+          cblock_pos[3],
+          cblock_src_pos[3],
+          cblock_nei_pos[3],
+          grid_origin[3];
+  int32_t cblock_size[3],
+          cblock_s[3];
+
+  int64_t cblock_cell,
+          nei_cblock_cell,
+          cblock_test_cell,
+          cblock_n,
+          grid_cell_origin,
+          grid_cell,
+          grid_src_pos,
+          grid_nei_pos;
+
+  int32_t _tile_idx, _tile_val, _tile_n;
+  int32_t knockout_count=0;
+
+  int32_t tile_src,
+          tile_nei,
+          idir;
+
+  int64_t splay_estimate,
+          splay_threshold,
+          splay_actual;
+
+  int constraints_valid=0,
+      has_support = 0;
+
+  int32_t _xyz[3],
+          _x, _y, _z,
+          _src_xyz[3],
+          _nei_xyz[3];
+
+  int64_t skipped_cblock = 0,
+          processed_cblock = 0,
+          processed_permutations = 0;
+
+  double _d;
+
+  //printf("npath consistency: sanityAC%i\n", poms.sanityArcConsistency());
+
+  cblock_size[0] = knx;
+  cblock_size[1] = kny;
+  cblock_size[2] = knz;
+
+  cblock_n = cblock_size[0] * cblock_size[1] * cblock_size[2];
+  cblock_tile_idx.resize( cblock_n );
+  cblock_tile_n.resize( cblock_n );
+  cblock_tile_val.resize( cblock_n );
+
+  splay_threshold = knmax;
+
+  // blech
+  //
+  tile_support.resize( cblock_n );
+  for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+    tile_support[cblock_cell].resize( poms.m_tile_count );
+  }
+
+  poms.cellTileVisitedClear( poms.m_plane );
+  poms.cellTileQueueClear( poms.m_plane );
+
+  for (grid_cell_origin=0; grid_cell_origin < poms.m_cell_count; grid_cell_origin++) {
+
+    poms.cell2vec(grid_origin, grid_cell_origin);
+
+    // oob
+    //
+    if ( ((grid_origin[0] + cblock_size[0]) < 0) ||
+         ((grid_origin[0] + cblock_size[0]) >= poms.m_size[0]) ||
+         ((grid_origin[1] + cblock_size[1]) < 0) ||
+         ((grid_origin[1] + cblock_size[1]) >= poms.m_size[1]) ||
+         ((grid_origin[2] + cblock_size[2]) < 0) ||
+         ((grid_origin[2] + cblock_size[2]) >= poms.m_size[2]) ) {
+      continue;
+    }
+
+    // initialize cblock
+    //  - all indices 0
+    //  - sizes from relevant grid cell
+    //  - support set to 0 for tiles available in the grid (intersection) cblock
+    //    and -1 for tiles not available at the implied cblock cell location
+    //
+    splay_estimate = 1;
+    for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+
+      poms.cell2vec( cblock_pos, cblock_cell, cblock_size );
+      grid_cell = poms.xyz2cell( grid_origin[0]+cblock_pos[0], grid_origin[1]+cblock_pos[1], grid_origin[2]+cblock_pos[2] );
+
+      cblock_tile_idx[cblock_cell]  = 0;
+      cblock_tile_n[cblock_cell]    = poms.cellSize( poms.m_plane, grid_cell );
+
+      for (_tile_val=0; _tile_val < poms.m_tile_count; _tile_val++) {
+        tile_support[cblock_cell][_tile_val] = -1;
+      }
+
+      _tile_n = poms.cellSize( poms.m_plane, grid_cell );
+      for (_tile_idx=0; _tile_idx < _tile_n; _tile_idx++) {
+        _tile_val = poms.cellTile( poms.m_plane, grid_cell, _tile_idx );
+        tile_support[cblock_cell][_tile_val] = 0;
+      }
+
+      if (_tile_n == 0) { return -1; }
+
+      splay_estimate *= _tile_n;
+      if (splay_estimate > splay_threshold) { break; }
+    }
+
+    if (splay_estimate > splay_threshold) {
+
+      skipped_cblock++;
+
+      continue;
+    }
+
+    processed_cblock++;
+
+    // big gains to be made but we're in validation stage, so do the brute force thing
+    //
+
+    // enumerate through all tile values within the constraint block
+    //
+    splay_actual = 0;
+    do {
+
+      // fill cblock with tile choice
+      //
+      for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+        poms.cell2vec( cblock_pos, cblock_cell, cblock_size );
+
+        grid_cell = poms.xyz2cell( grid_origin[0]+cblock_pos[0], grid_origin[1]+cblock_pos[1], grid_origin[2]+cblock_pos[2] );
+        cblock_tile_val[cblock_cell] = poms.cellTile( poms.m_plane, grid_cell, cblock_tile_idx[cblock_cell] );
+      }
+
+      // test every tile (one tile per cell) in the cblock
+      // - make sure all constraints are valid for the cblock
+      // - make sure tile has support (constraints valid)
+
+      constraints_valid = 1;
+      for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+        tile_src = cblock_tile_val[cblock_cell];
+        for (idir=0; idir<6; idir++) {
+          nei_cblock_cell = poms.neiCell( cblock_cell, idir, cblock_size );
+          if (nei_cblock_cell < 0) { continue; }
+
+          tile_nei = cblock_tile_val[nei_cblock_cell];
+
+          if ( poms.F( tile_src, tile_nei, idir ) < 0.5 ) {
+            constraints_valid = 0;
+            break;
+          }
+        }
+        if (constraints_valid == 0) { break; }
+      }
+
+      if (constraints_valid == 0) { continue; }
+
+      for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+        tile_src = cblock_tile_val[cblock_cell];
+
+        if (tile_support[cblock_cell][tile_src] < 0) {
+
+
+          printf("SANITY!!! tile_support[%i][%i] < 0!!!!! (%i)\n",
+              (int)cblock_cell, (int)tile_src, tile_support[cblock_cell][tile_src]);
+
+          return -1;
+        }
+
+        tile_support[cblock_cell][tile_src]++;
+      }
+
+      splay_actual++;
+      processed_permutations++;
+
+    } while (_idx_vec_incr( &(cblock_tile_idx[0]), &(cblock_tile_n[0]), cblock_n ) == 0);
+
+
+    // once we've enumerated all valid constraint blocks, all tile values that don't have support
+    // should be able to be removed
+    //
+    for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+      poms.cell2vec( cblock_pos, cblock_cell, cblock_size );
+      grid_cell = poms.xyz2cell( grid_origin[0]+cblock_pos[0], grid_origin[1]+cblock_pos[1], grid_origin[2]+cblock_pos[2] );
+
+      _tile_n = poms.cellSize( poms.m_plane, grid_cell );
+      for (_tile_idx=0; _tile_idx < _tile_n; _tile_idx++) {
+        _tile_val = poms.cellTile( poms.m_plane, grid_cell, _tile_idx );
+
+        if (tile_support[cblock_cell][_tile_val] < 0) {
+
+          printf("SANITY ERROR: grid pos:[%i+%i,%i+%i,%i+%i]{%i,%i} for tile val %i (idx:%i/%i) has negative support (%i), skipping\n",
+              grid_origin[0], cblock_pos[0],
+              grid_origin[1], cblock_pos[1],
+              grid_origin[2], cblock_pos[2],
+              (int)grid_cell, (int)cblock_cell,
+              _tile_val, _tile_idx, _tile_n,
+              tile_support[cblock_cell][_tile_val]);
+
+          continue;
+        }
+
+        if (tile_support[cblock_cell][_tile_val] == 0) {
+          if ( !poms.cellTileVisited( poms.m_plane, grid_cell, _tile_val) ) {
+
+            poms.cell2vec(_xyz, grid_cell);
+            printf("  queueing tile %i @ [%i+%i,%i+%i,%i+%i]{%i} (%i,%i,%i) for removal\n",
+                _tile_val,
+                (int)grid_origin[0], (int)cblock_pos[0],
+                (int)grid_origin[1], (int)cblock_pos[1],
+                (int)grid_origin[2], (int)cblock_pos[2],
+                (int)grid_cell,
+                (int)_xyz[0], (int)_xyz[1], (int)_xyz[2]);
+
+            poms.cellTileVisited( poms.m_plane, grid_cell, _tile_val, 1 );
+            poms.cellTileQueuePush( poms.m_plane, grid_cell, _tile_val );
+            knockout_count++;
+          }
+        }
+
+      }
+    }
+
+  }
+
+  if (poms.cellTileQueueSize( poms.m_plane ) > 0) {
+    printf("knocking out out %i (qsize:%i) (npath)\n",
+        knockout_count, (int)poms.cellTileQueueSize( poms.m_plane ));
+
+    for (i=0; i<poms.cellTileQueueSize( poms.m_plane ); i+=2) {
+      poms.cellTileQueuePeek( poms.m_plane, i, &grid_cell, &_tile_val );
+
+      poms.cell2vec(grid_pos, grid_cell);
+      printf("  knocking out [%i,%i,%i]{%i} tile:%i '%s'\n",
+          grid_pos[0], grid_pos[1], grid_pos[2],
+          (int)grid_cell,
+          (int)_tile_val, poms.m_tile_name[_tile_val].c_str());
+
+      _r = poms.removeTile( poms.m_plane, grid_cell, _tile_val );
+      if (_r < 0) {
+        printf("REMOVE TILE FAILURE: grid_cell:%i, tile_val:%i, got:%i\n",
+            (int)grid_cell, (int)_tile_val, _r);
+        return -1;
+      }
+    }
+
+
+    _d = ((processed_cblock > 0) ? ((double)processed_cblock) : 1.0),
+    printf("# npath (%i,%i,%i) stats: skipped_cblock:%i, processed_cblock:%i, avg_perm:%f (%i/%i)\n",
+        knx, kny, knz,
+        (int)skipped_cblock, (int)processed_cblock,
+        (double)processed_permutations / (double)_d,
+        (int)processed_permutations, (int)processed_cblock);
+
+    //poms.cellTileVisitedClear( poms.m_plane );
+    //poms.cellTileQueueClear( poms.m_plane );
+    //poms.resetAC4Dirty( poms.m_plane );
+
+    ret = poms.AC4Init();
+
+    //poms.cellTileVisitedClear( poms.m_plane );
+    //poms.cellTileQueueClear( poms.m_plane );
+    //poms.resetAC4Dirty( poms.m_plane );
+
+    if (ret == 0) { return 1; }
+    return ret;
+    //return 1;
+  }
+
+  return 0;
+
+  //if (knockout_count==0) { return 0; }
+  //return 1;
+}
+
 int knockout_path_consistency3(POMS &poms) {
   std::vector< int32_t > tile_support_d;
 
@@ -3983,8 +4345,8 @@ int knockout_path_consistency3(POMS &poms) {
     { 0,-1, 0,   0, 0,-1,  0,-1,-1 },  // -y, -z,-y-z
   };
 
-  //poms.cellTileVisitedClear( poms.m_plane );
-  //poms.cellTileQueueClear( poms.m_plane );
+  poms.cellTileVisitedClear( poms.m_plane );
+  poms.cellTileQueueClear( poms.m_plane );
 
   for (sched_idx=0; sched_idx < n_sched; sched_idx++) {
     for (cell=0; cell<poms.m_cell_count; cell++) {
@@ -4086,9 +4448,8 @@ int knockout_path_consistency3(POMS &poms) {
             //
             //poms.markAC4Dirty( poms.m_plane, cell_d );
 
-            //poms.cellTileVisited( poms.m_plane, cell_d, tile_d, 1 );
-            //poms.cellTileQueuePush( poms.m_plane, cell_d, tile_d );
-
+            poms.cellTileVisited( poms.m_plane, cell_d, tile_d, 1 );
+            poms.cellTileQueuePush( poms.m_plane, cell_d, tile_d );
 
             cell_tile_queue.push_back( cell_d );
             cell_tile_queue.push_back( tile_d );
@@ -4113,7 +4474,7 @@ int knockout_path_consistency3(POMS &poms) {
   //WIP
   //WIP
   if (cell_tile_queue.size() > 0) {
-    printf("knocked out %i (path3), got %i, hit enter to continue\n",
+    printf("knocked out %i (path3), got %i\n",
         knockout_count, ret);
 
     for (i=0; i<cell_tile_queue.size(); i+=2) {
@@ -4124,6 +4485,9 @@ int knockout_path_consistency3(POMS &poms) {
     }
 
     ret = poms.AC4Init();
+
+    printf("path3 ac4init got: %i\n", ret);
+
     if (ret == 0) { return 1; }
     return ret;
     //return 1;
@@ -4909,6 +5273,61 @@ int repeated_z_state(POMS &poms) {
 _repeated_z:
 
   return 1;
+}
+
+void debug_branch_factor(POMS &poms) {
+  int32_t i, j, k;
+
+  int32_t p[3];
+  int64_t cell;
+
+  int32_t tile_idx,
+          tile_n,
+          tile_val,
+          idir;
+
+  int32_t support_counter[6];
+
+  double f, d;
+
+  for (p[2]=0; p[2] < poms.m_size[2]; p[2]++) {
+    printf("\n## z: %i\n", p[2]);
+    for (p[1]=0; p[1] < poms.m_size[1]; p[1]++) {
+
+      printf("[.,%2i,%2i]:", p[1], p[2]);
+
+      for (p[0]=0; p[0] < poms.m_size[0]; p[0]++) {
+
+        cell = poms.vec2cell(p);
+
+        for (idir=0; idir<6; idir++) {
+          support_counter[idir] = 0;
+        }
+
+        tile_n = poms.cellSize( poms.m_plane, cell );
+        for (tile_idx=0; tile_idx < tile_n; tile_idx++) {
+          tile_val = poms.cellTile( poms.m_plane, cell, tile_idx );
+          for (idir=0; idir<6; idir++) {
+            support_counter[idir] += poms.tileSupport( poms.m_plane, idir, cell, tile_val );
+          }
+        }
+
+        d = (double)tile_n;
+        if (tile_n < 1) { d = 1.0; }
+
+        printf("  {");
+        for (idir=0; idir<6; idir++) {
+          if (idir > 0) { printf(","); }
+          printf("%2i:%0.2f", (int)idir, (double)support_counter[idir] / d);
+        }
+        printf("}");
+
+      }
+      printf("\n");
+    }
+    printf("\n");
+  }
+  printf("\n");
 }
 
 // sokoita end
@@ -5792,6 +6211,7 @@ int sokoita_main(int argc, char **argv) {
     //DEBUG
     //DEBUG
     printf("DEBUG, explodedTiled data structure initialized, hit return to continue\n");
+    fflush(stdout);
     fgetc(stdin);
   }
 
@@ -5827,7 +6247,7 @@ int sokoita_main(int argc, char **argv) {
   //EXPERIMENTAL
   //EXPERIMENTAL
   //
-  construct_xy_knockout();
+  //construct_xy_knockout();
 
   for (quilt_step=0; quilt_step < max_quilt_step; quilt_step++) {
 
@@ -5939,7 +6359,6 @@ int sokoita_main(int argc, char **argv) {
       continue;
     }
 
-
     //--------------------
     //    ___  __  _______
     //   / _ )/  |/  / __/
@@ -5979,99 +6398,104 @@ int sokoita_main(int argc, char **argv) {
           r = poms.BMSStep();
           if (r<=0) { break; }
 
-          // additional heuristics for sokoban
-          //
-          /*
-          if (repeated_z_state(poms)) {
-            r = -1;
-            poms.m_state = POMS_STATE_CONFLICT;
-            break;
-          }
-          else if (sokoita_player_crate_count_min_check(poms) != 0) {
-            r = -1;
-            poms.m_state = POMS_STATE_CONFLICT;
-            break;
-          }
-
-          if (KNOCKOUT_OPT) {
-            r = knockout_inadmissible_tiles(poms);
-            if (r<0) {
-
-              //DEBUG
-              //DEBUG
-              //DEBUG
-              printf("KNOCKOUT.0! %i\n", r);
-
-              r = -1;
-              poms.m_state = POMS_STATE_CONFLICT;
-              break;
-            }
-          }
-          */
-
           _update_viz_step( bms_step, opt, poms, g_ctx );
         }
 
-        //EXPERIMENTAL
-        //EXPERIMENTAL
-        //EXPERIMENTAL
-        if (r >= 0) {
-          int _kr = 0;
-          do {
-            _kr = knockout_path_consistency3(poms);
-            printf("!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-          } while (_kr > 0);
-
-          if (_kr < 0) {
-
-            poms.m_state = POMS_STATE_CONFLICT;
-
-            r = -1;
-          }
-
-        }
-
-        /*
+        // experimenting...
+        //
         if (KNOCKOUT_OPT) {
-          // additional heuristics for sokoban
-          //
           if (r >= 0) {
+
             do {
 
-              if (repeated_z_state(poms)) {
-                r = -1;
+              int _kr = 0;
+              do {
+                _kr = knockout_npath_consistency(poms, 2,2,2, 10000);
+
+                printf("npath(2)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+
+              } while (_kr > 0);
+
+              if (_kr < 0) {
+
+                printf("knockout failure (2)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
+                    (int)poms.m_conflict_cell,
+                    (int)poms.m_conflict_tile,
+                    (int)poms.m_conflict_idir,
+                    (int)poms.m_conflict_type);
+
                 poms.m_state = POMS_STATE_CONFLICT;
-                break;
-              }
-              else if (sokoita_player_crate_count_min_check(poms) != 0) {
                 r = -1;
-                poms.m_state = POMS_STATE_CONFLICT;
-                break;
-              }
-
-              //DEBUG
-              //DEBUG
-              //DEBUG
-              //_simple_stats(poms);
-
-              r = knockout_inadmissible_tiles(poms);
-              if (r<0) {
-
-                //DEBUG
-                //DEBUG
-                //DEBUG
-                printf("KNOCKOUT.1! %i\n", r);
-
-                r = -1;
-                poms.m_state = POMS_STATE_CONFLICT;
                 break;
               }
 
-            } while(0);
+              _kr = 0;
+              do {
+                _kr = knockout_npath_consistency(poms, 3,3,3, 100000);
+
+                printf("npath(3)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+
+              } while (_kr > 0);
+
+              if (_kr < 0) {
+
+                printf("knockout failure (3)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
+                    (int)poms.m_conflict_cell,
+                    (int)poms.m_conflict_tile,
+                    (int)poms.m_conflict_idir,
+                    (int)poms.m_conflict_type);
+
+                poms.m_state = POMS_STATE_CONFLICT;
+                r = -1;
+                break;
+              }
+
+              _kr = 0;
+              do {
+                _kr = knockout_npath_consistency(poms, 4,4,4, 1000000);
+
+                printf("npath(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+
+              } while (_kr > 0);
+
+              if (_kr < 0) {
+
+                printf("knockout failure (4)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
+                    (int)poms.m_conflict_cell,
+                    (int)poms.m_conflict_tile,
+                    (int)poms.m_conflict_idir,
+                    (int)poms.m_conflict_type);
+
+                poms.m_state = POMS_STATE_CONFLICT;
+                r = -1;
+                break;
+              }
+
+              _kr = 0;
+              do {
+                _kr = knockout_npath_consistency(poms, 3,3,5, 1000000);
+
+                printf("npath(3,3,5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+
+              } while (_kr > 0);
+
+              if (_kr < 0) {
+
+                printf("knockout failure (3,3,5)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
+                    (int)poms.m_conflict_cell,
+                    (int)poms.m_conflict_tile,
+                    (int)poms.m_conflict_idir,
+                    (int)poms.m_conflict_type);
+
+                poms.m_state = POMS_STATE_CONFLICT;
+                r = -1;
+                break;
+              }
+
+            } while (0);
+
           }
         }
-        */
-
 
 
         // BMS post step resolution processing

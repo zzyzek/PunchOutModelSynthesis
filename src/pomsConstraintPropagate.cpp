@@ -660,6 +660,8 @@ int POMS::AC4InitBlock(int32_t block[][2], int memoize_opt) {
         if (m_cell_pin[src_cell] != 0) { continue; }
 
         src_tile_n = cellSize(m_plane, src_cell);
+        if (src_tile_n == 0) { return -1; }
+
         for (src_tile_idx=0; src_tile_idx<src_tile_n; src_tile_idx++) {
           src_tile = cellTile(m_plane, src_cell, src_tile_idx);
 

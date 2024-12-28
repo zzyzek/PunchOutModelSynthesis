@@ -94,9 +94,15 @@ mcmc: poms.mcmc
 poms.mcmc: $(LIBDIR)/mcmc_poms.cpp.o $(OBJS)
 	@$(CPP) $(OBJS) $(LIBDIR)/mcmc_poms.cpp.o -o $(BINDIR)/poms.mcmc  $(CFLAGS) $(OPT)
 
+
 sokoita: poms.sokoita
 poms.sokoita: $(LIBDIR)/sokoita_poms.cpp.o $(OBJS)
 	@$(CPP) $(OBJS) $(LIBDIR)/sokoita_poms.cpp.o -o $(BINDIR)/poms.sokoita  $(CFLAGS) $(OPT)
+
+sokoita.debug: poms.sokoita.debug
+poms.sokoita.debug: $(DEBUGLIBDIR)/sokoita_poms.cpp.o $(DEBUGOBJS)
+	@$(CPP) $(DEBUGOBJS) $(DEBUGLIBDIR)/sokoita_poms.cpp.o -o $(BINDIR)/poms.sokoita.debug  $(CFLAGS) $(DEBUGOPT)
+
 
 # local arc consistent entropy
 lace: poms.lace
@@ -107,6 +113,7 @@ ir: poms.ir
 poms.ir: $(LIBDIR)/ir_poms.cpp.o $(OBJS)
 	@$(CPP) $(OBJS) $(LIBDIR)/ir_poms.cpp.o -o $(BINDIR)/poms.ir $(CFLAGS) $(OPT)
  
+
 # breakout model synthesis
 bms: poms.bms
 poms.bms: $(LIBDIR)/bms_poms.cpp.o $(OBJS)
@@ -115,6 +122,7 @@ poms.bms: $(LIBDIR)/bms_poms.cpp.o $(OBJS)
 bms.debug: poms.bms.debug
 poms.bms.debug: $(DEBUGLIBDIR)/bms_poms.cpp.o $(DEBUGOBJS)
 	@$(CPP) $(DEBUGOBJS) $(DEBUGLIBDIR)/bms_poms.cpp.o -o $(BINDIR)/poms.bms.debug $(CFLAGS) $(DEBUGOPT)
+
 
 # block solver
 block: poms.block
