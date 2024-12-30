@@ -3931,6 +3931,78 @@ static int _idx_vec_incr( int32_t *vec_idx, int32_t *vec_idx_n, int32_t vec_size
   return carry;
 }
 
+// Increment from pos permuted by sched, carrying backwards (towards 0 position).
+// That is, LSB on the right, MSB on the left
+//
+// returns:
+//
+//  >=0 :  last modified position
+//  -1  :  carry went off (left) end
+//
+static int32_t _idx_vec_rev_sched_pos_incr( int32_t pos, int32_t *vec_idx, int32_t *vec_idx_n, int32_t *sched, int32_t vec_size) {
+  int32_t idx=0,
+          carry = 1,
+          p_idx = 0;
+
+  for (idx=(pos+1); idx < (vec_size); idx++)  {
+    p_idx = sched[idx];
+    vec_idx[p_idx] = vec_idx_n[p_idx]-1;
+  }
+
+  for (idx=(vec_size-1), carry=1; ((idx >= 0) && (carry==1)) ; idx-- ) {
+    p_idx = sched[idx];
+    carry = 0;
+    vec_idx[p_idx]++;
+    if (vec_idx[p_idx] >= vec_idx_n[p_idx]) {
+      vec_idx[p_idx] = 0;
+      carry = 1;
+    }
+
+  }
+
+  return idx+1-carry;
+}
+
+static void _idx_vec_sched_print( int32_t *vec_idx, int32_t *vec_idx_n, int32_t *vec_sched, int32_t vec_size ) {
+  int i, p_idx;
+  for (i=0; i<vec_size; i++) {
+    p_idx = vec_sched[i];
+    printf(" %i/%i{i:%2i}", vec_idx[p_idx], vec_idx_n[p_idx], p_idx);
+  }
+}
+
+
+
+// Increment from pos, carrying backwards (towards 0 position).
+// That is, LSB on the right, MSB on the left
+//
+// returns:
+//
+//  >=0 :  last modified position
+//  -1  :  carry went off (left) end
+//
+static int32_t _idx_vec_rev_pos_incr( int32_t pos, int32_t *vec_idx, int32_t *vec_idx_n, int32_t vec_size) {
+  int32_t idx=0,
+          carry = 1;
+
+  for (idx=(pos+1); idx < (vec_size); idx++)  {
+    vec_idx[idx] = vec_idx_n[idx]-1;
+  }
+
+  for (idx=(vec_size-1), carry=1; ((idx >= 0) && (carry==1)) ; idx-- ) {
+    carry = 0;
+    vec_idx[idx]++;
+    if (vec_idx[idx] >= vec_idx_n[idx]) {
+      vec_idx[idx] = 0;
+      carry = 1;
+    }
+
+  }
+
+  return idx+1-carry;
+}
+
+
 // returns 0 if vector index is all 0
 //
 static int _idx_vec_zero( int32_t *vec_idx, int32_t vec_size ) {
@@ -3984,8 +4056,7 @@ static int _debug_cblock( POMS &poms, int32_t *tile_idx, int32_t *tile_val, int3
   return 0;
 }
 
-// PROBABLY BUGGY, ALWAYS KNOCKS OUT, ALWAYS GETS INTO
-// CONFLICT STATE
+// brute force path consistency
 //
 int knockout_npath_consistency(POMS &poms, int32_t knx, int32_t kny, int32_t knz, int64_t knmax) {
   int ret=0,
@@ -3993,7 +4064,6 @@ int knockout_npath_consistency(POMS &poms, int32_t knx, int32_t kny, int32_t knz
   int32_t i,j,k;
 
   std::vector< std::vector< int32_t > > tile_support;
-  std::vector< int64_t > cell_tile_queue;
 
   std::vector< int32_t >  cblock_tile_idx,
                           cblock_tile_n,
@@ -4039,8 +4109,6 @@ int knockout_npath_consistency(POMS &poms, int32_t knx, int32_t kny, int32_t knz
           processed_permutations = 0;
 
   double _d;
-
-  //printf("npath consistency: sanityAC%i\n", poms.sanityArcConsistency());
 
   cblock_size[0] = knx;
   cblock_size[1] = kny;
@@ -4255,25 +4323,504 @@ int knockout_npath_consistency(POMS &poms, int32_t knx, int32_t kny, int32_t knz
         (double)processed_permutations / (double)_d,
         (int)processed_permutations, (int)processed_cblock);
 
-    //poms.cellTileVisitedClear( poms.m_plane );
-    //poms.cellTileQueueClear( poms.m_plane );
-    //poms.resetAC4Dirty( poms.m_plane );
-
     ret = poms.AC4Init();
-
-    //poms.cellTileVisitedClear( poms.m_plane );
-    //poms.cellTileQueueClear( poms.m_plane );
-    //poms.resetAC4Dirty( poms.m_plane );
 
     if (ret == 0) { return 1; }
     return ret;
-    //return 1;
+  }
+
+  _d = ((processed_cblock > 0) ? ((double)processed_cblock) : 1.0),
+  printf("# npath (%i,%i,%i) stats: skipped_cblock:%i, processed_cblock:%i, avg_perm:%f (%i/%i)\n",
+      knx, kny, knz,
+      (int)skipped_cblock, (int)processed_cblock,
+      (double)processed_permutations / (double)_d,
+      (int)processed_permutations, (int)processed_cblock);
+
+
+  return 0;
+}
+
+// attempts at optimization
+//
+
+
+static int _zigzag_block_sched( POMS &poms, int32_t *sched, int32_t *sched_size, int32_t *idir_sched,  int32_t *start_pos ) {
+  int32_t pos[3] = {0},
+          cur_idir[3] = {0,2,4},
+
+          oppo[6] = {1,0, 3,2, 5,4},
+          idir_dxyz[6][3] = {
+            {  1, 0, 0 },
+            { -1, 0, 0 },
+
+            {  0, 1, 0 },
+            {  0,-1, 0 },
+
+            {  0, 0, 1 },
+            {  0, 0,-1 }
+          };
+  int64_t idx,
+          n_sched;
+
+  int32_t xyz,
+          idir_idx,
+          carry,
+          ovf_idx;
+
+  for (xyz=0; xyz<3; xyz++) {
+    pos[xyz] = ( ((sched_size[xyz]-1) == start_pos[xyz]) ? (sched_size[xyz]-1) : 0 );
+    cur_idir[xyz] = idir_sched[xyz];
+  }
+
+  n_sched = sched_size[0] * sched_size[1] * sched_size[2];
+  for (idx=0; idx<n_sched; idx++) {
+
+    sched[idx] = poms.vec2cell( pos, sched_size );
+
+    ovf_idx = 0;
+    for (idir_idx=0, carry=1; (idir_idx<3) && (carry==1); idir_idx++) {
+      carry = 0;
+      for (xyz=0; xyz<3; xyz++) {
+        if ( ((pos[xyz] + idir_dxyz[cur_idir[idir_idx]][xyz]) < 0) ||
+             ((pos[xyz] + idir_dxyz[cur_idir[idir_idx]][xyz]) >= sched_size[xyz]) ) {
+          cur_idir[xyz] = oppo[cur_idir[idir_idx]];
+          ovf_idx++;
+          carry = 1;
+        }
+
+      }
+    }
+
+    for (xyz=0; xyz<3; xyz++) {
+      pos[xyz] += idir_dxyz[ cur_idir[ovf_idx] ][xyz];
+    }
+
   }
 
   return 0;
+}
 
-  //if (knockout_count==0) { return 0; }
-  //return 1;
+
+static int _zigzag_block_sched_simple( POMS &poms, int32_t *sched, int32_t *sched_size ) {
+  int32_t idir_sched[3],
+          start_pos[3];
+
+  idir_sched[0] = 0;
+  idir_sched[1] = 2;
+  idir_sched[2] = 4;
+
+  start_pos[0] = 0;
+  start_pos[1] = 0;
+  start_pos[2] = 0;
+
+  return _zigzag_block_sched( poms, sched, sched_size, idir_sched, start_pos );
+}
+
+
+int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t knz, int64_t knmax) {
+  int ret=0,
+      _r=0;
+  int32_t i,j,k;
+
+  std::vector< std::vector< int32_t > > tile_support;
+
+  std::vector< int32_t >  cblock_tile_idx,
+                          cblock_tile_n,
+                          cblock_tile_val,
+                          cblock_sched,
+                          cblock_sched_bp;
+  int32_t grid_pos[3],
+          cblock_pos[3],
+          cblock_src_pos[3],
+          cblock_nei_pos[3],
+          grid_origin[3];
+  int32_t cblock_size[3],
+          cblock_s[3];
+
+  int32_t sched_idx;
+
+
+  int64_t cblock_cell,
+          nei_cblock_cell,
+          cblock_test_cell,
+          cblock_n,
+          grid_cell_origin,
+          grid_cell,
+          grid_nei_pos;
+
+  int32_t _tile_idx, _tile_val, _tile_n;
+  int32_t knockout_count=0;
+
+  int32_t tile_src,
+          tile_nei,
+          idir;
+
+  int64_t enumeration_threshold,
+          enumeration_count;
+
+  int constraints_valid=0,
+      has_support = 0,
+      cblock_processed = 0;
+
+  int32_t _xyz[3],
+          _x, _y, _z,
+          _src_xyz[3],
+          _nei_xyz[3];
+
+  int64_t skipped_cblock = 0,
+          processed_cblock = 0,
+          processed_permutations = 0;
+
+  double _d;
+
+  double log_est;
+
+  double _stat_max_bits=0.0,
+         _stat_sum_bits=0.0,
+         _stat_n = 0.0;
+
+  //printf("npath consistency: sanityAC%i\n", poms.sanityArcConsistency());
+
+  cblock_size[0] = knx;
+  cblock_size[1] = kny;
+  cblock_size[2] = knz;
+
+  cblock_n = cblock_size[0] * cblock_size[1] * cblock_size[2];
+  cblock_tile_idx.resize( cblock_n );
+  cblock_tile_n.resize( cblock_n );
+  cblock_tile_val.resize( cblock_n );
+  cblock_sched.resize( cblock_n );
+  cblock_sched_bp.resize( cblock_n );
+
+
+  enumeration_threshold = knmax;
+
+  // blech
+  //
+  tile_support.resize( cblock_n );
+  for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+    tile_support[cblock_cell].resize( poms.m_tile_count );
+  }
+
+  poms.cellTileVisitedClear( poms.m_plane );
+  poms.cellTileQueueClear( poms.m_plane );
+
+  for (grid_cell_origin=0; grid_cell_origin < poms.m_cell_count; grid_cell_origin++) {
+
+    poms.cell2vec(grid_origin, grid_cell_origin);
+
+    // oob
+    //
+    if ( ((grid_origin[0] + cblock_size[0]) < 0) ||
+         ((grid_origin[0] + cblock_size[0]) >= poms.m_size[0]) ||
+         ((grid_origin[1] + cblock_size[1]) < 0) ||
+         ((grid_origin[1] + cblock_size[1]) >= poms.m_size[1]) ||
+         ((grid_origin[2] + cblock_size[2]) < 0) ||
+         ((grid_origin[2] + cblock_size[2]) >= poms.m_size[2]) ) {
+      continue;
+    }
+
+    // initialize cblock
+    //  - all indices 0
+    //  - sizes from relevant grid cell
+    //  - support set to 0 for tiles available in the grid (intersection) cblock
+    //    and -1 for tiles not available at the implied cblock cell location
+    //
+    log_est = 0.0;
+    for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+
+      poms.cell2vec( cblock_pos, cblock_cell, cblock_size );
+      grid_cell = poms.xyz2cell( grid_origin[0]+cblock_pos[0], grid_origin[1]+cblock_pos[1], grid_origin[2]+cblock_pos[2] );
+
+      cblock_tile_idx[cblock_cell]  = 0;
+      cblock_tile_n[cblock_cell]    = poms.cellSize( poms.m_plane, grid_cell );
+
+      for (_tile_val=0; _tile_val < poms.m_tile_count; _tile_val++) {
+        tile_support[cblock_cell][_tile_val] = -1;
+      }
+
+      _tile_n = poms.cellSize( poms.m_plane, grid_cell );
+      for (_tile_idx=0; _tile_idx < _tile_n; _tile_idx++) {
+        _tile_val = poms.cellTile( poms.m_plane, grid_cell, _tile_idx );
+        tile_support[cblock_cell][_tile_val] = 0;
+      }
+
+      if (_tile_n == 0) { return -1; }
+
+      log_est += log( (double) _tile_n ) / log(2.0);
+    }
+
+    _zigzag_block_sched_simple( poms, &(cblock_sched[0]), cblock_size );
+    for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+      cblock_sched_bp[ cblock_sched[cblock_cell] ] = cblock_cell;
+    }
+
+
+    //DEBUG
+    //DEBUG
+    //DEBUG
+    //printf("grid_origin:[%i,%i,%i]{%i}, cblock_size:[%i,%i,%i] vec:",
+    //    grid_origin[0], grid_origin[1], grid_origin[2],
+    //    (int)grid_cell_origin,
+    //    cblock_size[0], cblock_size[1], cblock_size[2] );
+    //_idx_vec_sched_print( &(cblock_tile_idx[0]), &(cblock_tile_n[0]), &(cblock_sched[0]), cblock_n );
+    //printf("\n");
+
+
+    // go through the cblock in cblock_sched order, filling in cblock_tile_val as
+    // we go, checking for valid constraints to all previously filled in values
+    // along the way.
+    //
+    // If we reach a contradiction along the schedule chain, we can skip early,
+    // incrementing the `cblock_tile_idx` at our current location.
+    // Only if we get through the whole chain can we add to the tile_support.
+    // We fill the cblock_tile_val along the way and check for valid constraints
+    // in each of the dimension directions, skipping neighboring values that are
+    // ahead of schedule.
+    //
+    // When we increment the `cblock_tile_idx`, the carry might affect values
+    // before our current schedule position, so we have to 'jump back' to the
+    // affected incremented tile index, so we can continue the chain from
+    // that new position.
+    // From the new position, we go through the schedule, making sure
+    // constraints are still valid.
+    //
+    // If we reach the end of enumerating the tile index vector (`cblock_tile_idx`)
+    // under the enumeration threshold, we can use the tile_support to figure out
+    // if we can remove any tiles.
+    //
+    enumeration_count = 0;
+    cblock_processed = 0;
+    sched_idx = 0;
+    for ( enumeration_count = 0; enumeration_count < enumeration_threshold; enumeration_count++ ) {
+
+      //DEBUG
+      //DEBUG
+      //DEBUG
+      //printf("  ec:%i, sched_idx:%i, ", (int)enumeration_count, (int)sched_idx);
+      //_idx_vec_sched_print( &(cblock_tile_idx[0]), &(cblock_tile_n[0]), &(cblock_sched[0]), cblock_n );
+      //printf("\n");
+
+      // run through the cblock, in scblock_sched order,
+      // advancing the index if we've still met valid constraints.
+      // If we reach an invalid constraint, we can stop early and
+      // increment the index vector from that point.
+      // If we've reached the end with all valid constraints, we
+      // update the tile_support appropriately.
+      //
+      constraints_valid = 1;
+      for ( ; sched_idx < cblock_n; sched_idx++) {
+        cblock_cell = cblock_sched[sched_idx];
+        poms.cell2vec( cblock_pos, cblock_cell, cblock_size );
+        grid_cell = poms.xyz2cell( grid_origin[0]+cblock_pos[0],
+                                   grid_origin[1]+cblock_pos[1],
+                                   grid_origin[2]+cblock_pos[2] );
+        tile_src = poms.cellTile( poms.m_plane, grid_cell, cblock_tile_idx[cblock_cell] );
+        cblock_tile_val[ cblock_cell ] = tile_src;
+
+        /*
+        printf("   attempt tile:%i @ grid_cell[%i+%i,%i+%i,%i+%i]{%i} (sched_idx:%i) cblock_cell:%i\n",
+            tile_src,
+            grid_origin[0], cblock_pos[0],
+            grid_origin[1], cblock_pos[1],
+            grid_origin[2], cblock_pos[2],
+            (int)grid_cell,
+            sched_idx, (int)cblock_cell);
+            */
+
+        for (idir=0; idir<6; idir++) {
+          nei_cblock_cell = poms.neiCell( cblock_cell, idir, cblock_size );
+
+          // oob
+          //
+          if (nei_cblock_cell < 0) { continue; }
+
+          // ahead of schedule
+          //
+          if (cblock_sched_bp[nei_cblock_cell] > cblock_sched_bp[cblock_cell]) { continue; }
+
+          tile_nei = cblock_tile_val[ nei_cblock_cell ];
+
+          /*
+          printf("    sched_idx[%i]: tile:%i @ {%i} =(%i)=> tile:%i @ {%i} : %f\n",
+              (int)sched_idx,
+              tile_src, (int)cblock_cell,
+              idir,
+              tile_nei, (int)nei_cblock_cell,
+              poms.F(tile_src, tile_nei, idir));
+              */
+
+
+          if (poms.F(tile_src, tile_nei, idir) < 0.5) {
+            constraints_valid=0;
+            break;
+          }
+        }
+
+        // early short circuit
+        //
+        if (constraints_valid == 0) { break; }
+
+      }
+
+      //printf("  -->cv:%i, sched_idx:%i, ", constraints_valid, (int)sched_idx);
+      //_idx_vec_sched_print( &(cblock_tile_idx[0]), &(cblock_tile_n[0]), &(cblock_sched[0]), cblock_n );
+      //printf("\n");
+
+      if (constraints_valid) {
+
+        for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+          tile_src = cblock_tile_val[cblock_cell];
+
+          if (tile_support[cblock_cell][tile_src] < 0) {
+
+            printf("SANITY!!! tile_support[%i][%i] < 0!!!!! (%i)\n",
+                (int)cblock_cell, (int)tile_src, tile_support[cblock_cell][tile_src]);
+
+            return -1;
+          }
+
+          tile_support[cblock_cell][tile_src]++;
+        }
+
+      }
+      //enumeration_count++;
+      processed_permutations++;
+
+      sched_idx = _idx_vec_rev_sched_pos_incr( sched_idx, &(cblock_tile_idx[0]), &(cblock_tile_n[0]), &(cblock_sched[0]), cblock_n );
+      if (sched_idx < 0) { break; }
+    }
+
+    if (enumeration_count < enumeration_threshold) {
+      cblock_processed = 1;
+    }
+
+    if (!cblock_processed) {
+      skipped_cblock++;
+      continue;
+    }
+
+
+    //_d = ((enumeration_count > 0) ? (log((double)enumeration_count)/log(2.0)) : 0.0);
+    _d = (log((double)enumeration_count + 1.0)/log(2.0));
+
+    _stat_sum_bits += log_est - _d;
+    _stat_n += 1.0;
+    if ((log_est - _d) > _stat_max_bits) {
+      _stat_max_bits = log_est - _d;
+    }
+
+    //printf("cblock processed: %lli (lg(est) - lg(count): %f bits saved)\n",
+    //    (long long int)enumeration_count, 
+
+    // once we've enumerated all valid constraint blocks, all tile values that don't have support
+    // should be able to be removed
+    //
+    for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
+      poms.cell2vec( cblock_pos, cblock_cell, cblock_size );
+      grid_cell = poms.xyz2cell( grid_origin[0]+cblock_pos[0], grid_origin[1]+cblock_pos[1], grid_origin[2]+cblock_pos[2] );
+
+      _tile_n = poms.cellSize( poms.m_plane, grid_cell );
+      for (_tile_idx=0; _tile_idx < _tile_n; _tile_idx++) {
+        _tile_val = poms.cellTile( poms.m_plane, grid_cell, _tile_idx );
+
+        if (tile_support[cblock_cell][_tile_val] < 0) {
+
+          printf("SANITY ERROR: grid pos:[%i+%i,%i+%i,%i+%i]{%i,%i} for tile val %i (idx:%i/%i) has negative support (%i), skipping\n",
+              grid_origin[0], cblock_pos[0],
+              grid_origin[1], cblock_pos[1],
+              grid_origin[2], cblock_pos[2],
+              (int)grid_cell, (int)cblock_cell,
+              _tile_val, _tile_idx, _tile_n,
+              tile_support[cblock_cell][_tile_val]);
+
+          continue;
+        }
+
+        if (tile_support[cblock_cell][_tile_val] == 0) {
+          if ( !poms.cellTileVisited( poms.m_plane, grid_cell, _tile_val) ) {
+
+            /*
+            poms.cell2vec(_xyz, grid_cell);
+            printf("  queueing tile %i @ [%i+%i,%i+%i,%i+%i]{%i} (%i,%i,%i) for removal\n",
+                _tile_val,
+                (int)grid_origin[0], (int)cblock_pos[0],
+                (int)grid_origin[1], (int)cblock_pos[1],
+                (int)grid_origin[2], (int)cblock_pos[2],
+                (int)grid_cell,
+                (int)_xyz[0], (int)_xyz[1], (int)_xyz[2]);
+                */
+
+            poms.cellTileVisited( poms.m_plane, grid_cell, _tile_val, 1 );
+            poms.cellTileQueuePush( poms.m_plane, grid_cell, _tile_val );
+            knockout_count++;
+          }
+        }
+
+      }
+    }
+
+  }
+
+  printf("# npath_opt [%i,%i,%i] stats: processed_perm:%i, skipped_cblock:%i, max_bits:%f, avg_bits:%f\n",
+      knx, kny, knz,
+      (int)processed_permutations, (int)skipped_cblock,
+      _stat_max_bits, _stat_sum_bits / (((_stat_n < 0.5) ? 1.0 : _stat_n)) );
+
+  // finally, if we have any (cell,tile) pairs queued for removal, remove them
+  //
+  // For now, re-run AC4Init to find a contradiction or put the grid in an
+  // arc consistent state.
+  //
+  if (poms.cellTileQueueSize( poms.m_plane ) > 0) {
+    printf("# npath_opt [%i,%i,%i] knocking out out %i (qsize:%i) (npath)\n",
+        knx, kny, knz,
+        knockout_count, (int)poms.cellTileQueueSize( poms.m_plane ));
+
+    for (i=0; i<poms.cellTileQueueSize( poms.m_plane ); i+=2) {
+      poms.cellTileQueuePeek( poms.m_plane, i, &grid_cell, &_tile_val );
+
+      poms.cell2vec(grid_pos, grid_cell);
+      /*
+      printf("  knocking out [%i,%i,%i]{%i} tile:%i '%s'\n",
+          grid_pos[0], grid_pos[1], grid_pos[2],
+          (int)grid_cell,
+          (int)_tile_val, poms.m_tile_name[_tile_val].c_str());
+          */
+
+      _r = poms.removeTile( poms.m_plane, grid_cell, _tile_val );
+      if (_r < 0) {
+        printf("REMOVE TILE FAILURE: grid_cell:%i, tile_val:%i, got:%i\n",
+            (int)grid_cell, (int)_tile_val, _r);
+        return -1;
+      }
+    }
+
+
+    _d = ((processed_cblock > 0) ? ((double)processed_cblock) : 1.0),
+    printf("# npath_opt (%i,%i,%i) stats: skipped_cblock:%i, processed_cblock:%i, avg_perm:%f (%i/%i)\n",
+        knx, kny, knz,
+        (int)skipped_cblock, (int)processed_cblock,
+        (double)processed_permutations / (double)_d,
+        (int)processed_permutations, (int)processed_cblock);
+
+    ret = poms.AC4Init();
+
+    if (ret == 0) { return 1; }
+    return ret;
+  }
+
+  /*
+  _d = ((processed_cblock > 0) ? ((double)processed_cblock) : 1.0),
+  printf("# npath_opt (%i,%i,%i) stats: skipped_cblock:%i, processed_cblock:%i, avg_perm:%f (%i/%i)\n",
+      knx, kny, knz,
+      (int)skipped_cblock, (int)processed_cblock,
+      (double)processed_permutations / (double)_d,
+      (int)processed_permutations, (int)processed_cblock);
+      */
+
+
+  return 0;
 }
 
 int knockout_path_consistency3(POMS &poms) {
@@ -6410,9 +6957,11 @@ int sokoita_main(int argc, char **argv) {
 
               int _kr = 0;
               do {
-                _kr = knockout_npath_consistency(poms, 2,2,2, 10000);
+                //_kr = knockout_npath_consistency(poms, 2,2,2, 10000);
+                //printf("npath(2)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
-                printf("npath(2)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+                _kr = knockout_npath_consistency_opt(poms, 2,2,2, 10000);
+                printf("npath_opt(2)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
               } while (_kr > 0);
 
@@ -6431,9 +6980,11 @@ int sokoita_main(int argc, char **argv) {
 
               _kr = 0;
               do {
-                _kr = knockout_npath_consistency(poms, 3,3,3, 100000);
+                //_kr = knockout_npath_consistency(poms, 3,3,3, 100000);
+                //printf("npath(3)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
-                printf("npath(3)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+                _kr = knockout_npath_consistency_opt(poms, 3,3,3, 100000);
+                printf("npath_opt(3)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
               } while (_kr > 0);
 
@@ -6452,9 +7003,11 @@ int sokoita_main(int argc, char **argv) {
 
               _kr = 0;
               do {
-                _kr = knockout_npath_consistency(poms, 4,4,4, 1000000);
+                //_kr = knockout_npath_consistency(poms, 4,4,4, 1000000);
+                //printf("npath(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
-                printf("npath(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+                _kr = knockout_npath_consistency_opt(poms, 4,4,4, 1000000);
+                printf("npath_opt(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
               } while (_kr > 0);
 
@@ -6473,9 +7026,11 @@ int sokoita_main(int argc, char **argv) {
 
               _kr = 0;
               do {
-                _kr = knockout_npath_consistency(poms, 3,3,5, 1000000);
+                //_kr = knockout_npath_consistency(poms, 3,3,5, 1000000);
+                //printf("npath(3,3,5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
-                printf("npath(3,3,5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+                _kr = knockout_npath_consistency_opt(poms, 3,3,5, 1000000);
+                printf("npath_opt(3,3,5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
               } while (_kr > 0);
 
