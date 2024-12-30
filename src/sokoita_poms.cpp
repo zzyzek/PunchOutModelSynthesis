@@ -4467,9 +4467,9 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
           _src_xyz[3],
           _nei_xyz[3];
 
-  int64_t skipped_cblock = 0,
-          processed_cblock = 0,
-          processed_permutations = 0;
+  int64_t skipped_cblock_count = 0,
+          processed_cblock_count = 0,
+          processed_permutation_count = 0;
 
   double _d;
 
@@ -4685,7 +4685,7 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
 
       }
       //enumeration_count++;
-      processed_permutations++;
+      processed_permutation_count++;
 
       sched_idx = _idx_vec_rev_sched_pos_incr( sched_idx, &(cblock_tile_idx[0]), &(cblock_tile_n[0]), &(cblock_sched[0]), cblock_n );
       if (sched_idx < 0) { break; }
@@ -4693,10 +4693,11 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
 
     if (enumeration_count < enumeration_threshold) {
       cblock_processed = 1;
+      processed_cblock_count++;
     }
 
     if (!cblock_processed) {
-      skipped_cblock++;
+      skipped_cblock_count++;
       continue;
     }
 
@@ -4762,9 +4763,13 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
 
   }
 
-  printf("# npath_opt [%i,%i,%i] stats: processed_perm:%i, skipped_cblock:%i, max_bits:%f, avg_bits:%f\n",
+  _d = ((processed_cblock_count > 0) ? ((double)processed_cblock_count) : 1.0),
+  printf("# npath_opt [%i,%i,%i] stats: processed_perm:%i, processed_cblock:%i, avg_perm/cblock:%f, skipped_cblock:%i, max_bits:%f, avg_bits:%f\n",
       knx, kny, knz,
-      (int)processed_permutations, (int)skipped_cblock,
+      (int)processed_permutation_count,
+      (int)processed_cblock_count,
+      (double)processed_permutation_count / (double)((processed_cblock_count > 0) ? ((double)processed_cblock_count) : 1.0),
+      (int)skipped_cblock_count,
       _stat_max_bits, _stat_sum_bits / (((_stat_n < 0.5) ? 1.0 : _stat_n)) );
 
   // finally, if we have any (cell,tile) pairs queued for removal, remove them
@@ -4773,7 +4778,7 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
   // arc consistent state.
   //
   if (poms.cellTileQueueSize( poms.m_plane ) > 0) {
-    printf("# npath_opt [%i,%i,%i] knocking out out %i (qsize:%i) (npath)\n",
+    printf("# npath_opt:[%i,%i,%i] knockout_count:%i (qsize:%i)\n",
         knx, kny, knz,
         knockout_count, (int)poms.cellTileQueueSize( poms.m_plane ));
 
@@ -4797,28 +4802,11 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
     }
 
 
-    _d = ((processed_cblock > 0) ? ((double)processed_cblock) : 1.0),
-    printf("# npath_opt (%i,%i,%i) stats: skipped_cblock:%i, processed_cblock:%i, avg_perm:%f (%i/%i)\n",
-        knx, kny, knz,
-        (int)skipped_cblock, (int)processed_cblock,
-        (double)processed_permutations / (double)_d,
-        (int)processed_permutations, (int)processed_cblock);
-
     ret = poms.AC4Init();
 
     if (ret == 0) { return 1; }
     return ret;
   }
-
-  /*
-  _d = ((processed_cblock > 0) ? ((double)processed_cblock) : 1.0),
-  printf("# npath_opt (%i,%i,%i) stats: skipped_cblock:%i, processed_cblock:%i, avg_perm:%f (%i/%i)\n",
-      knx, kny, knz,
-      (int)skipped_cblock, (int)processed_cblock,
-      (double)processed_permutations / (double)_d,
-      (int)processed_permutations, (int)processed_cblock);
-      */
-
 
   return 0;
 }
