@@ -15,6 +15,9 @@
 
 int KNOCKOUT_OPT = 1;
 
+int KO_ENUM_PROF = -1;
+int KO_AC4INIT_PROF = -1;
+
 g_ctx_t g_ctx = {0};
 
 
@@ -4387,12 +4390,17 @@ static int _zigzag_block_sched( POMS &poms, int32_t *sched, int32_t *sched_size,
           ovf_idx++;
           carry = 1;
         }
-
       }
     }
 
-    for (xyz=0; xyz<3; xyz++) {
-      pos[xyz] += idir_dxyz[ cur_idir[ovf_idx] ][xyz];
+    // hacky, we'll come back to it.
+    //
+    if (idx < (n_sched-1)) {
+      if (ovf_idx < 3) {
+        for (xyz=0; xyz<3; xyz++) {
+          pos[xyz] += idir_dxyz[ cur_idir[ovf_idx] ][xyz];
+        }
+      }
     }
 
   }
@@ -4502,6 +4510,15 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
     tile_support[cblock_cell].resize( poms.m_tile_count );
   }
 
+
+  // DEBUG PROFILING
+  // DEBUG PROFILING
+  poms._prof_reset( KO_ENUM_PROF );
+  poms._prof_start( KO_ENUM_PROF );
+  // DEBUG PROFILING
+  // DEBUG PROFILING
+
+
   poms.cellTileVisitedClear( poms.m_plane );
   poms.cellTileQueueClear( poms.m_plane );
 
@@ -4550,11 +4567,12 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
       log_est += log( (double) _tile_n ) / log(2.0);
     }
 
+
     _zigzag_block_sched_simple( poms, &(cblock_sched[0]), cblock_size );
+
     for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
       cblock_sched_bp[ cblock_sched[cblock_cell] ] = cblock_cell;
     }
-
 
     //DEBUG
     //DEBUG
@@ -4598,8 +4616,10 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
       //DEBUG
       //DEBUG
       //printf("  ec:%i, sched_idx:%i, ", (int)enumeration_count, (int)sched_idx);
+      //fflush(stdout);
       //_idx_vec_sched_print( &(cblock_tile_idx[0]), &(cblock_tile_n[0]), &(cblock_sched[0]), cblock_n );
       //printf("\n");
+      //fflush(stdout);
 
       // run through the cblock, in scblock_sched order,
       // advancing the index if we've still met valid constraints.
@@ -4801,8 +4821,24 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
       }
     }
 
+    //DEBUG PROFILING
+    //DEBUG PROFILING
+    poms._prof_end( KO_ENUM_PROF );
+    poms._prof_print( KO_ENUM_PROF);
+
+    poms._prof_reset( KO_AC4INIT_PROF );
+    poms._prof_start( KO_AC4INIT_PROF );
+    //DEBUG PROFILING
+    //DEBUG PROFILING
 
     ret = poms.AC4Init();
+
+    //DEBUG PROFILING
+    //DEBUG PROFILING
+    poms._prof_end( KO_AC4INIT_PROF );
+    poms._prof_print( KO_AC4INIT_PROF );
+    //DEBUG PROFILING
+    //DEBUG PROFILING
 
     if (ret == 0) { return 1; }
     return ret;
@@ -5047,6 +5083,64 @@ int knockout_path_consistency3(POMS &poms) {
   }
 
   return ret;
+}
+
+int knockout_heuristics(POMS &poms) {
+  int _kr = 0;
+  int32_t idx=0;
+
+  int32_t knx, kny, knz,
+          max_cblock_iter;
+
+  int32_t npath_size_iter_n = 8;
+  int32_t npath_size_iter[][4] = {
+    {2,2,1,  10000},
+    {2,2,2,  10000},
+
+    {3,3,1,  10000},
+    {3,3,2, 100000},
+    {3,3,3, 100000},
+    //{3,3,5, 100000},
+
+    {4,4,2, 100000},
+    {4,4,4, 100000},
+
+    {5,5,5, 100000},
+    //{5,5,10, 100000},
+  };
+
+  for (idx=0; idx < npath_size_iter_n; idx++) {
+
+    knx = npath_size_iter[idx][0];
+    kny = npath_size_iter[idx][1];
+    knz = npath_size_iter[idx][2];
+    max_cblock_iter = npath_size_iter[idx][3];
+
+    do {
+      _kr = knockout_npath_consistency_opt(poms, knx, kny, knz, max_cblock_iter);
+
+      printf("npath_opt(%i) [%i,%i,%i](%i)!! _kr: %i (poms.m_state:%i)\n",
+          idx, knx, kny, knz, max_cblock_iter,
+          _kr, poms.m_state);
+      fflush(stdout);
+
+    } while (_kr > 0);
+
+    if (_kr < 0) {
+
+      printf("knockout failure (%i)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
+          idx,
+          (int)poms.m_conflict_cell,
+          (int)poms.m_conflict_tile,
+          (int)poms.m_conflict_idir,
+          (int)poms.m_conflict_type);
+
+      poms.m_state = POMS_STATE_CONFLICT;
+      return -1;
+    }
+  }
+
+  return 0;
 }
 
 /*
@@ -6540,7 +6634,8 @@ int sokoita_main(int argc, char **argv) {
     poms.printDebug();
   }
 
-  poms.m_tile_choice_policy = POMS_TILE_CHOICE_PROB;
+  //poms.m_tile_choice_policy = POMS_TILE_CHOICE_PROB;
+  poms.m_tile_choice_policy = POMS_TILE_CHOICE_PROB_WEIGHTED_SUPPORT;
 
   poms.m_block_choice_policy = POMS_BLOCK_CHOICE_MIN_ENTROPY;
   if (opt.block_choice_policy >= 0) {
@@ -6754,6 +6849,15 @@ int sokoita_main(int argc, char **argv) {
   //---
   //---
 
+  // DEBUG PROFILING
+  // DEBUG PROFILING
+  std::string ko_ac4init_prof = "ko_ac4init";
+  std::string ko_enum_prof = "ko_enum";
+  KO_ENUM_PROF = poms._prof_create(ko_enum_prof);
+  KO_AC4INIT_PROF = poms._prof_create(ko_ac4init_prof);
+  // DEBUG PROFILING
+  // DEBUG PROFILING
+
   //------------------------------------
   //              _ _ _   _
   //   __ _ _   _(_) | |_(_)_ __   __ _
@@ -6902,6 +7006,16 @@ int sokoita_main(int argc, char **argv) {
     //
     //--------------------
 
+    r = knockout_heuristics(poms);
+    if (r < 0) { return err_and_return("INITIAL KNOCKOUT FAILURE"); }
+
+    printf("initial knockout succeeded, saving prefatory (got:%i)\n", r);
+
+    r = poms.savePrefatory();
+    if (r < 0) { return err_and_return("INITIAL PREFATORY RE-SAVE FAILED"); }
+
+    printf("initial prefatory saved...(got:%i)\n", r);
+
 
     r = poms.BMSInit();
     if (r < 0) { return err_and_return("BMSInit error"); }
@@ -6941,6 +7055,9 @@ int sokoita_main(int argc, char **argv) {
         if (KNOCKOUT_OPT) {
           if (r >= 0) {
 
+            r = knockout_heuristics(poms);
+
+            /*
             do {
 
               int _kr = 0;
@@ -6991,10 +7108,36 @@ int sokoita_main(int argc, char **argv) {
 
               _kr = 0;
               do {
+                //_kr = knockout_npath_consistency(poms, 3,3,5, 1000000);
+                //printf("npath(3,3,5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+
+                //_kr = knockout_npath_consistency_opt(poms, 3,3,5, 1000000);
+                _kr = knockout_npath_consistency_opt(poms, 3,3,5, 100000);
+                printf("npath_opt(3,3,5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+
+              } while (_kr > 0);
+
+              if (_kr < 0) {
+
+                printf("knockout failure (3,3,5)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
+                    (int)poms.m_conflict_cell,
+                    (int)poms.m_conflict_tile,
+                    (int)poms.m_conflict_idir,
+                    (int)poms.m_conflict_type);
+
+                poms.m_state = POMS_STATE_CONFLICT;
+                r = -1;
+                break;
+              }
+
+
+              _kr = 0;
+              do {
                 //_kr = knockout_npath_consistency(poms, 4,4,4, 1000000);
                 //printf("npath(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
-                _kr = knockout_npath_consistency_opt(poms, 4,4,4, 1000000);
+                //_kr = knockout_npath_consistency_opt(poms, 4,4,4, 1000000);
+                _kr = knockout_npath_consistency_opt(poms, 4,4,4, 100000);
                 printf("npath_opt(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
               } while (_kr > 0);
@@ -7014,17 +7157,42 @@ int sokoita_main(int argc, char **argv) {
 
               _kr = 0;
               do {
-                //_kr = knockout_npath_consistency(poms, 3,3,5, 1000000);
-                //printf("npath(3,3,5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+                //_kr = knockout_npath_consistency(poms, 4,4,4, 1000000);
+                //printf("npath(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
-                _kr = knockout_npath_consistency_opt(poms, 3,3,5, 1000000);
-                printf("npath_opt(3,3,5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+                //_kr = knockout_npath_consistency_opt(poms, 4,4,4, 1000000);
+                _kr = knockout_npath_consistency_opt(poms, 5,5,5, 100000);
+                printf("npath_opt(5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
 
               } while (_kr > 0);
 
               if (_kr < 0) {
 
-                printf("knockout failure (3,3,5)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
+                printf("knockout failure (5)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
+                    (int)poms.m_conflict_cell,
+                    (int)poms.m_conflict_tile,
+                    (int)poms.m_conflict_idir,
+                    (int)poms.m_conflict_type);
+
+                poms.m_state = POMS_STATE_CONFLICT;
+                r = -1;
+                break;
+              }
+
+              _kr = 0;
+              do {
+                //_kr = knockout_npath_consistency(poms, 4,4,4, 1000000);
+                //printf("npath(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+
+                //_kr = knockout_npath_consistency_opt(poms, 4,4,4, 1000000);
+                _kr = knockout_npath_consistency_opt(poms, 5,5,10, 100000);
+                printf("npath_opt(6)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
+
+              } while (_kr > 0);
+
+              if (_kr < 0) {
+
+                printf("knockout failure (6)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
                     (int)poms.m_conflict_cell,
                     (int)poms.m_conflict_tile,
                     (int)poms.m_conflict_idir,
@@ -7036,6 +7204,7 @@ int sokoita_main(int argc, char **argv) {
               }
 
             } while (0);
+              */
 
           }
         }

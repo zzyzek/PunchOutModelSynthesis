@@ -57,8 +57,9 @@
 #define POMS_STATE_SUCCESS    2
 #define POMS_STATE_CONFLICT   3
 
-#define POMS_TILE_CHOICE_MAX   0
-#define POMS_TILE_CHOICE_PROB  1
+#define POMS_TILE_CHOICE_MAX                    0
+#define POMS_TILE_CHOICE_PROB                   1
+#define POMS_TILE_CHOICE_PROB_WEIGHTED_SUPPORT  2
 
 #define POMS_BLOCK_CHOICE_SEQUENTIAL    0
 #define POMS_BLOCK_CHOICE_MAX_ENTROPY   1
@@ -512,6 +513,9 @@ class POMS {
     int computeCellEntropy(void);
     int computeCellEntropyWithinBlock(void);
     int computeCellEntropyWithinBlock(int32_t block[][2], int dirty_opt=0);
+
+    int computeCellEntropyWeightedSupportWithinBlock(void);
+    int computeCellEntropyWeightedSupportWithinBlock(int32_t block[][2], int dirty_opt=0);
 
     int computeBlockEntropy(int32_t reuse_cell_entropy=0);
     int computeBlockEntropy(int32_t *block_size, int32_t reuse_cell_entropy=0);
@@ -1491,9 +1495,24 @@ class POMS {
       return idx;
     }
 
+    int _prof_reset(int prof_idx) {
+      int r;
+
+      if (prof_idx < 0) { return -1; }
+
+      if (prof_idx >= m_prof_s.size()) {
+        _prof_resize(prof_idx+1);
+      }
+
+      m_prof_count[prof_idx] = 0;
+
+      return 0;
+    }
+
     int _prof_start(int prof_idx) {
       int r;
 
+      if (prof_idx < 0) { return -1; }
       if (prof_idx >= m_prof_s.size()) {
         _prof_resize(prof_idx+1);
       }
@@ -1506,6 +1525,7 @@ class POMS {
       int r;
       double dt, prv_n, cur_n;
 
+      if (prof_idx < 0) { return -1; }
       if (prof_idx >= m_prof_s.size()) {
         _prof_resize(prof_idx+1);
       }
@@ -1527,6 +1547,8 @@ class POMS {
     }
 
     void _prof_print(int idx) {
+      if (idx < 0) { return; }
+      if (idx >= m_prof_name.size()) { return; }
       printf("# prof[%i]{%s}: %fms (/%lli)\n",
           idx, m_prof_name[idx].c_str(),
           m_prof_ms[idx], (long long int)m_prof_count[idx]);

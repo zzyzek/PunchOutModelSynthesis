@@ -3618,6 +3618,9 @@ int POMS::setupQuiltPatch(void) {
 
   renew();
 
+  m_state = POMS_STATE_INIT;
+  m_phase = POMS_PHASE_CREATE;
+
   r = refreshConstraints();
   if (r<0) { return r; }
 

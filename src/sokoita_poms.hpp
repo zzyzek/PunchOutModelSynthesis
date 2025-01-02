@@ -22,7 +22,7 @@
 #include "auxExport.hpp"
 #include "TiledExport.hpp"
 
-#define SOKOITA_POMS_BIN_VERSION "0.18.12"
+#define SOKOITA_POMS_BIN_VERSION "0.18.15"
 
 enum NOISE_TYPE {
   NOISE_TYPE_NONE = 0,

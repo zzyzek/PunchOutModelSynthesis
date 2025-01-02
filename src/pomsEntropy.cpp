@@ -96,6 +96,107 @@ int POMS::computeCellEntropyWithinBlock(int32_t block[][2], int dirty_opt) {
   return ret;
 }
 
+// An attempt at a better entropy calculation.
+// The idea is that the cell entropy is weighted by the
+// support a tile has.
+// Under some hand-waivey assumptions, More tile support means higher entropy,
+// so we can include the tile support (from the AC4 calculation) in determining
+// a better estimate for the entropy.
+//
+// The calculation is:
+//
+//   w_{tile} = G(tile) * \prod_{idir=0}^{5} support(cell,tile,idir) / cellCount( neiCell(cell,idir) )
+//
+// The idea is that for a random draw of tiles from the neighbors, the chance that there's a valid
+// satisfied constraint is (support / #neiCell). The `w_{tile}` is then weighted by the individual
+// tile probability.
+//
+// After the weights are calculatd, the whole current weight vector is renormalized and the entropy
+// can be calculated.
+//
+// >0 - all cell positions realized
+//  0 - success
+// <0 - at least one cell has no tiles
+//
+int POMS::computeCellEntropyWeightedSupportWithinBlock(int32_t block[][2], int dirty_opt) {
+  int64_t cell,
+          nei_cell;
+  int32_t x,y,z,
+          tile_idx,
+          tile,
+          tile_n,
+
+          nei_tile_n,
+          idir,
+          dir_support;
+  double S, lg2, R, p,
+         w;
+  int ret = 1;
+
+  lg2 = log(2.0);
+
+  for (z=block[2][0]; z<block[2][1]; z++) {
+    for (y=block[1][0]; y<block[1][1]; y++) {
+      for (x=block[0][0]; x<block[0][1]; x++) {
+        cell = xyz2cell(x,y,z);
+        if (cell<0) { continue; }
+
+        if (m_cell_pin[cell] != 0) { continue; }
+
+        if (dirty_opt &&
+            (!m_ac4_dirty[m_plane][cell])) {
+          continue;
+        }
+
+
+        tile_n = cellSize(m_plane, cell);
+        if (tile_n <  1) { return -1; }
+        if (tile_n == 1) {
+          m_entropy[cell] = 0.0;
+          continue;
+        }
+
+        ret = 0;
+
+        S = 0.0;
+        R = 0.0;
+        for (tile_idx=0; tile_idx < tile_n; tile_idx++) {
+          tile = cellTile( m_plane, cell, tile_idx );
+
+          w = 1.0;
+          for (idir=0; idir<6; idir++) {
+            nei_cell = neiCell(cell, idir);
+            if (nei_cell < 0) { continue; }
+
+            dir_support = (double)tileSupport( m_plane, idir, cell, tile );
+            if (dir_support == 0) { return -1; }
+            if (cellSize( m_plane, nei_cell) == 0) { return -1; }
+
+            w *= (double)dir_support / (double)cellSize(m_plane, nei_cell);
+          }
+
+          p = G_cb(cell,tile) * w;
+
+          if (p > m_zero) {
+            S += -p * log(p) / lg2;
+            R += p;
+          }
+        }
+
+        if (R > m_zero) {
+          S /= R;
+          S += log(R) / lg2;
+        }
+
+        m_entropy[cell] = S;
+
+      }
+    }
+  }
+
+  return ret;
+}
+
 // Compute entropy restricted to `m_block`
 //
 // >0 - all cell positions realized
@@ -104,6 +205,10 @@ int POMS::computeCellEntropyWithinBlock(int32_t block[][2], int dirty_opt) {
 //
 int POMS::computeCellEntropyWithinBlock() {
   return computeCellEntropyWithinBlock(m_block, 1);
+}
+
+int POMS::computeCellEntropyWeightedSupportWithinBlock() {
+  return computeCellEntropyWeightedSupportWithinBlock(m_block, 1);
 }
 
 //---
@@ -122,20 +227,32 @@ int POMS::pickCellMinEntropyWithinBlock(int64_t *min_cell,
                                         double *min_entropy,
                                         int32_t block[][2]) {
   int64_t cell,
+          nei_cell,
           _min_cell;
   int32_t x,y,z,
           idx,
           _tile_idx,
           tile,
-          tile_n;
+          tile_n,
+
+          nei_tile_n,
+          idir,
+          dir_support;
   double s_min=-1.0, s=0,
          p_max=-1.0, p=0,
+         w=0, dp=0.0,
          count=0.0, tcount=0.0,
          R, prv,
          prob_cdf=0.0;
   int ret = 1;
 
-  ret = computeCellEntropyWithinBlock(block, 1);
+  ret = -1;
+  if (m_tile_choice_policy == POMS_TILE_CHOICE_PROB_WEIGHTED_SUPPORT) {
+    ret = computeCellEntropyWeightedSupportWithinBlock(block, 1);
+  }
+  else {
+    ret = computeCellEntropyWithinBlock(block, 1);
+  }
   if (ret != 0) { return ret; }
 
   for (z=block[2][0]; z<block[2][1]; z++) {
@@ -218,6 +335,8 @@ int POMS::pickCellMinEntropyWithinBlock(int64_t *min_cell,
       *tile_idx = _tile_idx;
     }
 
+    // prbabilistically choose min. entropy tile
+    //
     else if (m_tile_choice_policy == POMS_TILE_CHOICE_PROB) {
 
       R = 0.0;
@@ -238,12 +357,10 @@ int POMS::pickCellMinEntropyWithinBlock(int64_t *min_cell,
         for (_tile_idx=0; _tile_idx<(tile_n-1); _tile_idx++) {
           tile = cellTile( m_plane, _min_cell, _tile_idx );
 
-          //if ( (p > prob_cdf) && (p < (prob_cdf + (G(tile)/R))) ) {
           if ( (p > prob_cdf) && (p < (prob_cdf + (G_cb(_min_cell,tile)/R))) ) {
             break;
           }
 
-          //prob_cdf += G(tile) / R;
           prob_cdf += G_cb(_min_cell,tile) / R;
 
         }
@@ -252,6 +369,67 @@ int POMS::pickCellMinEntropyWithinBlock(int64_t *min_cell,
 
       *tile_idx = _tile_idx;
     }
+
+    // prbabilistically choose weighted support min. entropy tile
+    //
+    else if (m_tile_choice_policy == POMS_TILE_CHOICE_PROB_WEIGHTED_SUPPORT) {
+
+      R = 0.0;
+      tile_n = cellSize( m_plane, _min_cell );
+      for (idx=0; idx<tile_n; idx++) {
+        tile = cellTile( m_plane, _min_cell, idx );
+
+        w = 1.0;
+        for (idir=0; idir<6; idir++) {
+          nei_cell = neiCell( _min_cell, idir );
+          if (nei_cell < 0) { continue; }
+
+          dir_support = tileSupport( m_plane, idir, _min_cell, tile );
+          if (dir_support == 0) { continue; }
+          if (cellSize( m_plane, nei_cell ) == 0) { continue; }
+
+          w *= (double)dir_support / (double)cellSize( m_plane, nei_cell );
+        }
+
+        R += G_cb(_min_cell,tile) * w;
+      }
+
+      if (R > m_zero) {
+
+        p = rnd();
+
+        prob_cdf = 0.0;
+        for (_tile_idx=0; _tile_idx<(tile_n-1); _tile_idx++) {
+          tile = cellTile( m_plane, _min_cell, _tile_idx );
+
+          w = 1.0;
+          for (idir=0; idir<6; idir++) {
+            nei_cell = neiCell( _min_cell, idir );
+            if (nei_cell < 0) { continue; }
+
+            dir_support = tileSupport( m_plane, idir, _min_cell, tile );
+            if (dir_support == 0) { continue; }
+            if (cellSize( m_plane, nei_cell ) == 0) { continue; }
+
+            w *= (double)dir_support / (double)cellSize( m_plane, nei_cell );
+          }
+
+          dp = G_cb(_min_cell,tile) * w;
+
+          if ( (p > prob_cdf) && (p < (prob_cdf + (dp/R))) ) {
+            break;
+          }
+
+          prob_cdf += dp / R;
+
+        }
+      }
+      else { _tile_idx = irnd(tile_n); }
+
+      *tile_idx = _tile_idx;
+    }
+
+
 
   }
 
