@@ -4424,6 +4424,23 @@ static int _zigzag_block_sched_simple( POMS &poms, int32_t *sched, int32_t *sche
   return _zigzag_block_sched( poms, sched, sched_size, idir_sched, start_pos );
 }
 
+static int _gilbert_block_sched_simple( POMS &poms, int32_t *sched, int32_t *sched_size ) {
+  int32_t x,y,z;
+  int64_t idx,
+          cell,
+          n_sched;
+
+  n_sched = sched_size[0] * sched_size[1] * sched_size[2];
+
+  for (idx=0; idx < n_sched; idx++) {
+    gilbert_d2xyz(&x, &y, &z, idx, sched_size[0], sched_size[1], sched_size[2]);
+    cell = poms.xyz2cell(x,y,z, sched_size);
+    sched[idx] = cell;
+  }
+
+  return 0;
+}
+
 
 int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t knz, int64_t knmax) {
   int ret=0,
@@ -4568,7 +4585,8 @@ int knockout_npath_consistency_opt(POMS &poms, int32_t knx, int32_t kny, int32_t
     }
 
 
-    _zigzag_block_sched_simple( poms, &(cblock_sched[0]), cblock_size );
+    //_zigzag_block_sched_simple( poms, &(cblock_sched[0]), cblock_size );
+    _gilbert_block_sched_simple( poms, &(cblock_sched[0]), cblock_size );
 
     for (cblock_cell=0; cblock_cell < cblock_n; cblock_cell++) {
       cblock_sched_bp[ cblock_sched[cblock_cell] ] = cblock_cell;
@@ -5086,13 +5104,15 @@ int knockout_path_consistency3(POMS &poms) {
 }
 
 int knockout_heuristics(POMS &poms) {
-  int _kr = 0;
+  int _kr = 0,
+      continue_knockout=0;
+  int32_t knockout_round=0;
   int32_t idx=0;
 
   int32_t knx, kny, knz,
           max_cblock_iter;
 
-  int32_t npath_size_iter_n = 8;
+  int32_t npath_size_iter_n = 14;
   int32_t npath_size_iter[][4] = {
     {2,2,1,  10000},
     {2,2,2,  10000},
@@ -5102,43 +5122,61 @@ int knockout_heuristics(POMS &poms) {
     {3,3,3, 100000},
     //{3,3,5, 100000},
 
+    {4,4,1, 100000},
     {4,4,2, 100000},
+    {4,4,3, 100000},
     {4,4,4, 100000},
 
+    {5,5,1, 100000},
+    {5,5,2, 100000},
+    {5,5,3, 100000},
+    {5,5,4, 100000},
     {5,5,5, 100000},
     //{5,5,10, 100000},
   };
 
-  for (idx=0; idx < npath_size_iter_n; idx++) {
+  do {
 
-    knx = npath_size_iter[idx][0];
-    kny = npath_size_iter[idx][1];
-    knz = npath_size_iter[idx][2];
-    max_cblock_iter = npath_size_iter[idx][3];
+    printf("knockout_round: %i\n", knockout_round);
+    knockout_round++;
 
-    do {
-      _kr = knockout_npath_consistency_opt(poms, knx, kny, knz, max_cblock_iter);
+    continue_knockout=0;
+    for (idx=0; idx < npath_size_iter_n; idx++) {
 
-      printf("npath_opt(%i) [%i,%i,%i](%i)!! _kr: %i (poms.m_state:%i)\n",
-          idx, knx, kny, knz, max_cblock_iter,
-          _kr, poms.m_state);
-      fflush(stdout);
+      knx = npath_size_iter[idx][0];
+      kny = npath_size_iter[idx][1];
+      knz = npath_size_iter[idx][2];
+      max_cblock_iter = npath_size_iter[idx][3];
 
-    } while (_kr > 0);
+      do {
+        _kr = knockout_npath_consistency_opt(poms, knx, kny, knz, max_cblock_iter);
 
-    if (_kr < 0) {
+        printf("npath_opt(%i) [%i,%i,%i](%i)!! _kr: %i (poms.m_state:%i)\n",
+            idx, knx, kny, knz, max_cblock_iter,
+            _kr, poms.m_state);
+        fflush(stdout);
 
-      printf("knockout failure (%i)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
-          idx,
-          (int)poms.m_conflict_cell,
-          (int)poms.m_conflict_tile,
-          (int)poms.m_conflict_idir,
-          (int)poms.m_conflict_type);
+        if (_kr > 0) {
+          continue_knockout=1;
+        }
 
-      poms.m_state = POMS_STATE_CONFLICT;
-      return -1;
+      } while (_kr > 0);
+
+      if (_kr < 0) {
+
+        printf("knockout failure (%i)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
+            idx,
+            (int)poms.m_conflict_cell,
+            (int)poms.m_conflict_tile,
+            (int)poms.m_conflict_idir,
+            (int)poms.m_conflict_type);
+
+        poms.m_state = POMS_STATE_CONFLICT;
+        return -1;
+      }
     }
-  }
+
+  } while (continue_knockout);
 
   return 0;
 }

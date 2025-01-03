@@ -478,6 +478,11 @@ function update_pixi_tilemap(tiled_data) {
 
         let a = 1.0 - ((fog_gr[idx] - 1) / (fog_max) );
         a = Math.pow( a, g_tile_viewer_info.fog_exponent );
+
+
+        a = ((fog_gr[idx] - 1) / (fog_max));
+        a = Math.sqrt(1 - Math.abs(Math.pow(a, 1.0/g_tile_viewer_info.fog_exponent)));
+
         sprite.alpha = a;
       }
 
@@ -695,8 +700,8 @@ function _keydown(ev) {
   else if ((ev.key == ']') ||
            (ev.key == '}')) {
     g_tile_viewer_info.fog_exponent += 1;
-    if (g_tile_viewer_info.fog_exponent > 5) {
-      g_tile_viewer_info.fog_exponent = 5;
+    if (g_tile_viewer_info.fog_exponent > 10) {
+      g_tile_viewer_info.fog_exponent = 10;
     }
   }
 

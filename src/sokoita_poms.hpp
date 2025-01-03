@@ -22,6 +22,8 @@
 #include "auxExport.hpp"
 #include "TiledExport.hpp"
 
+#include "gilbert.h"
+
 #define SOKOITA_POMS_BIN_VERSION "0.18.15"
 
 enum NOISE_TYPE {
