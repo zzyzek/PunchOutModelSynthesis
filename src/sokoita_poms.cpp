@@ -5103,6 +5103,13 @@ int knockout_path_consistency3(POMS &poms) {
   return ret;
 }
 
+// apply npath heuristics
+//
+// return:
+//
+// -1 : conflice
+//  0 : success
+//
 int knockout_heuristics(POMS &poms) {
   int _kr = 0,
       continue_knockout=0;
@@ -5181,140 +5188,120 @@ int knockout_heuristics(POMS &poms) {
   return 0;
 }
 
-/*
-int knockout_path_consistency(POMS &poms) {
-  std::vector< int32_t > tile_support_c;
+// remove duplicate player in (x,y) plane
+//
+// return:
+//
+//  -1 : conflict
+//   0 : success (nothing removed)
+//   1 : success, continuation (tiles removed)
+//
+int knockout_doppleganger(POMS &poms) {
+  int _r, ret;
+  int64_t cell, t_cell;
+  int32_t x,y,z;
+  int32_t tile, tile_n, tile_val;
 
-  int32_t i,j,k;
+  int32_t i;
+  int32_t tx, ty,
+          t_tile_idx,
+          t_tile_n,
+          t_tile_val;
 
-  int32_t x,y,z,
-          v[3], u[3], w[3];
-
-  int64_t cell,
-          cell_a,
-          cell_b,
-          cell_c;
-
-  int32_t tile_a,
-          tile_b,
-          tile_c;
-
-  int32_t tile_n_a,
-          tile_n_b,
-          tile_n_c,
-          tile_idx_a,
-          tile_idx_b,
-          tile_idx_c;
-
-  int32_t idir_ac,
-          idir_bc;
-
-  int32_t knockout_count=0;
-
-  tile_support_c.clear();
-  tile_support_c.resize( poms.m_tile_count, -1);
-
-  int32_t sched_idx, n_sched = 2;
-  int32_t nei_sched[][6] = {
-    { 1, 1, 0,   1, 0, 0 },
-    { 1, 1, 0,   0, 1, 0 },
-  };
-  int32_t idir_sched[][2] = {
-    { 0, 2 },
-    { 1, 3 }
-  };
+  int32_t pos[3];
+  int64_t knockout_count=0;
 
   poms.cellTileVisitedClear( poms.m_plane );
   poms.cellTileQueueClear( poms.m_plane );
 
-  for (sched_idx=0; sched_idx < n_sched; sched_idx++) {
-    for (cell=0; cell<poms.m_cell_count; cell++) {
-      poms.cell2vec(v, cell, poms.m_quilt_size);
-      poms.cell2vec(u, cell, poms.m_quilt_size);
-      poms.cell2vec(w, cell, poms.m_quilt_size);
+  for (z=0; z<poms.m_size[2]; z++) {
+    for (y=0; y<poms.m_size[1]; y++) {
+      for (x=0; x<poms.m_size[0]; x++) {
 
-      u[0] += nei_sched[sched_idx][0];
-      u[1] += nei_sched[sched_idx][1];
-      u[2] += nei_sched[sched_idx][2];
+        cell = poms.xyz2cell( x, y, z, poms.m_size );
+        tile_n = poms.cellSize( poms.m_plane, cell );
+        if (tile_n != 1) { continue; }
 
-      w[0] += nei_sched[sched_idx][3];
-      w[1] += nei_sched[sched_idx][4];
-      w[2] += nei_sched[sched_idx][5];
+        tile_val = poms.cellTile( poms.m_plane, cell, 0 );
+        if (poms.m_tile_name[tile_val].size() < 5) { continue; }
+        if ((poms.m_tile_name[tile_val][2] != '@') &&
+            (poms.m_tile_name[tile_val][2] != '+')) {
+          continue;
+        }
 
+        //----
+        //
+        for (ty=0; ty<poms.m_size[1]; ty++) {
+          for (tx=0; tx<poms.m_size[0]; tx++) {
 
-      cell_a = cell;
-      cell_b = poms.vec2cell(u, poms.m_quilt_size);
-      cell_c = poms.vec2cell(w, poms.m_quilt_size);
-
-      idir_ac = idir_sched[sched_idx][0];
-      idir_bc = idir_sched[sched_idx][1];
-
-      if ((cell_b < 0) || (cell_c < 0)) { continue; }
-
-      for (i=0; i<poms.m_tile_count; i++) { tile_support_c[i] = -1; }
-
-      tile_n_c = poms.cellSize( poms.m_plane, cell_c );
-      for (tile_idx_c=0; tile_idx_c < tile_n_c; tile_idx_c++) {
-        tile_c = poms.cellTile( poms.m_plane, cell_c, tile_idx_c );
-        tile_support_c[tile_c] = 0;
-      }
-
-      tile_n_a = poms.cellSize( poms.m_plane, cell_a );
-      tile_n_b = poms.cellSize( poms.m_plane, cell_b );
-
-      for (tile_idx_a=0; tile_idx_a < tile_n_a; tile_idx_a++) {
-        for (tile_idx_b=0; tile_idx_b < tile_n_b; tile_idx_b++) {
-          for (tile_idx_c=0; tile_idx_c < tile_n_c; tile_idx_c++) {
-            tile_a = poms.cellTile( poms.m_plane, cell_a, tile_idx_a );
-            tile_b = poms.cellTile( poms.m_plane, cell_b, tile_idx_b );
-            tile_c = poms.cellTile( poms.m_plane, cell_c, tile_idx_c );
-
-            if ( (poms.F(tile_a, tile_c, idir_ac) > 0.5) &&
-                 (poms.F(tile_b, tile_c, idir_bc) > 0.5) ) {
-              tile_support_c[tile_c]++;
+            if ( (tx >= (x-2)) && (tx <= (x+2)) &&
+                 (ty >= (y-2)) && (ty <= (y+2)) ) {
+              continue;
             }
+
+            t_cell = poms.xyz2cell( tx, ty, z, poms.m_size );
+            t_tile_n = poms.cellSize( poms.m_plane, t_cell );
+            for (t_tile_idx=0; t_tile_idx < t_tile_n; t_tile_idx++) {
+              t_tile_val = poms.cellTile( poms.m_plane, t_cell, t_tile_idx );
+              if (poms.m_tile_name[t_tile_val].size() < 5) { continue; }
+
+              for (i=0; i<poms.m_tile_name[t_tile_val].size(); i++) {
+                if ((poms.m_tile_name[t_tile_val][i] == '@') ||
+                    (poms.m_tile_name[t_tile_val][i] == '+')) {
+
+                  poms.cellTileVisited( poms.m_plane, t_cell, t_tile_val, 1 );
+                  poms.cellTileQueuePush( poms.m_plane, t_cell, t_tile_val );
+                  knockout_count++;
+
+                  break;
+                }
+              }
+
+            }
+
           }
         }
-      }
-
-      for (tile_c=0; tile_c < tile_n_c; tile_c++) {
-        if (tile_support_c[tile_c] == 0) {
-          knockout_count++;
-          printf("knockout %i@[%i,%i,%i]{%i} (sched_idx: %i)\n",
-              tile_c, w[0], w[1], w[2], (int)cell_c, sched_idx);
-        }
-      }
-      
-      for (cell = 0; cell < poms.m_cell_count; cell++) {
-        poms.cell2vec(v, cell, poms.m_quilt_size);
-        if (!_cell_in_patch(poms, v[0], v[1], v[2])) { continue; }
-        if (dijkstra_map[0][cell] >= 0) { continue; }
-
-        n_tile = poms.cellSize( poms.m_plane, cell );
-        for (tile_idx = 0; tile_idx < n_tile; tile_idx++) {
-          tile_val = poms.cellTile( poms.m_plane, cell, tile_idx );
-          if (poms.m_tile_name[tile_val].size() < 3) { continue; }
-
-            poms.cellTileVisited( poms.m_plane, cell, tile_val, 1 );
-            poms.cellTileQueuePush( poms.m_plane, cell, tile_val );
-
-            knockout_count++;
-          }
-        }
+        //
+        //----
 
       }
-
-
-
     }
-
   }
 
-  printf("knockout_count: %i\n", knockout_count);
+  if (poms.cellTileQueueSize( poms.m_plane ) > 0) {
+    printf("# doppleganger: knockout_count:%i (qsize:%i)\n",
+        (int)knockout_count, (int)poms.cellTileQueueSize( poms.m_plane ));
 
-  return knockout_count;
+    for (i=0; i<poms.cellTileQueueSize( poms.m_plane ); i+=2) {
+      poms.cellTileQueuePeek( poms.m_plane, i, &cell, &tile_val );
+
+      poms.cell2vec(pos, cell);
+
+      _r = poms.removeTile( poms.m_plane, cell, tile_val );
+      if (_r < 0) {
+        printf("REMOVE TILE FAILURE: grid_cell:%i, tile_val:%i, got:%i\n",
+            (int)cell, (int)tile_val, _r);
+        return -1;
+      }
+    }
+
+    ret = poms.AC4Init();
+
+    if (ret < 0) {
+
+      printf("doppleganger conflict!!\n");
+
+      poms.m_state = POMS_STATE_CONFLICT;
+      return -1;
+    }
+
+    if (ret == 0) { return 1; }
+    return ret;
+  }
+
+
+  return 0;
 }
-*/
 
 // WIP!!
 //
@@ -7092,158 +7079,13 @@ int sokoita_main(int argc, char **argv) {
         //
         if (KNOCKOUT_OPT) {
           if (r >= 0) {
-
             r = knockout_heuristics(poms);
 
-            /*
-            do {
+            if (r >= 0) {
+              r = knockout_doppleganger(poms);
 
-              int _kr = 0;
-              do {
-                //_kr = knockout_npath_consistency(poms, 2,2,2, 10000);
-                //printf("npath(2)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-                _kr = knockout_npath_consistency_opt(poms, 2,2,2, 10000);
-                printf("npath_opt(2)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-              } while (_kr > 0);
-
-              if (_kr < 0) {
-
-                printf("knockout failure (2)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
-                    (int)poms.m_conflict_cell,
-                    (int)poms.m_conflict_tile,
-                    (int)poms.m_conflict_idir,
-                    (int)poms.m_conflict_type);
-
-                poms.m_state = POMS_STATE_CONFLICT;
-                r = -1;
-                break;
-              }
-
-              _kr = 0;
-              do {
-                //_kr = knockout_npath_consistency(poms, 3,3,3, 100000);
-                //printf("npath(3)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-                _kr = knockout_npath_consistency_opt(poms, 3,3,3, 100000);
-                printf("npath_opt(3)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-              } while (_kr > 0);
-
-              if (_kr < 0) {
-
-                printf("knockout failure (3)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
-                    (int)poms.m_conflict_cell,
-                    (int)poms.m_conflict_tile,
-                    (int)poms.m_conflict_idir,
-                    (int)poms.m_conflict_type);
-
-                poms.m_state = POMS_STATE_CONFLICT;
-                r = -1;
-                break;
-              }
-
-              _kr = 0;
-              do {
-                //_kr = knockout_npath_consistency(poms, 3,3,5, 1000000);
-                //printf("npath(3,3,5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-                //_kr = knockout_npath_consistency_opt(poms, 3,3,5, 1000000);
-                _kr = knockout_npath_consistency_opt(poms, 3,3,5, 100000);
-                printf("npath_opt(3,3,5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-              } while (_kr > 0);
-
-              if (_kr < 0) {
-
-                printf("knockout failure (3,3,5)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
-                    (int)poms.m_conflict_cell,
-                    (int)poms.m_conflict_tile,
-                    (int)poms.m_conflict_idir,
-                    (int)poms.m_conflict_type);
-
-                poms.m_state = POMS_STATE_CONFLICT;
-                r = -1;
-                break;
-              }
-
-
-              _kr = 0;
-              do {
-                //_kr = knockout_npath_consistency(poms, 4,4,4, 1000000);
-                //printf("npath(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-                //_kr = knockout_npath_consistency_opt(poms, 4,4,4, 1000000);
-                _kr = knockout_npath_consistency_opt(poms, 4,4,4, 100000);
-                printf("npath_opt(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-              } while (_kr > 0);
-
-              if (_kr < 0) {
-
-                printf("knockout failure (4)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
-                    (int)poms.m_conflict_cell,
-                    (int)poms.m_conflict_tile,
-                    (int)poms.m_conflict_idir,
-                    (int)poms.m_conflict_type);
-
-                poms.m_state = POMS_STATE_CONFLICT;
-                r = -1;
-                break;
-              }
-
-              _kr = 0;
-              do {
-                //_kr = knockout_npath_consistency(poms, 4,4,4, 1000000);
-                //printf("npath(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-                //_kr = knockout_npath_consistency_opt(poms, 4,4,4, 1000000);
-                _kr = knockout_npath_consistency_opt(poms, 5,5,5, 100000);
-                printf("npath_opt(5)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-              } while (_kr > 0);
-
-              if (_kr < 0) {
-
-                printf("knockout failure (5)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
-                    (int)poms.m_conflict_cell,
-                    (int)poms.m_conflict_tile,
-                    (int)poms.m_conflict_idir,
-                    (int)poms.m_conflict_type);
-
-                poms.m_state = POMS_STATE_CONFLICT;
-                r = -1;
-                break;
-              }
-
-              _kr = 0;
-              do {
-                //_kr = knockout_npath_consistency(poms, 4,4,4, 1000000);
-                //printf("npath(4)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-                //_kr = knockout_npath_consistency_opt(poms, 4,4,4, 1000000);
-                _kr = knockout_npath_consistency_opt(poms, 5,5,10, 100000);
-                printf("npath_opt(6)!! _kr: %i (poms.m_state:%i)\n", _kr, poms.m_state);
-
-              } while (_kr > 0);
-
-              if (_kr < 0) {
-
-                printf("knockout failure (6)! conflict cell:%i, tile:%i, idir:%i, type:%i\n",
-                    (int)poms.m_conflict_cell,
-                    (int)poms.m_conflict_tile,
-                    (int)poms.m_conflict_idir,
-                    (int)poms.m_conflict_type);
-
-                poms.m_state = POMS_STATE_CONFLICT;
-                r = -1;
-                break;
-              }
-
-            } while (0);
-              */
-
+              printf("## doppleganger return: %i\n", r);
+            }
           }
         }
 
