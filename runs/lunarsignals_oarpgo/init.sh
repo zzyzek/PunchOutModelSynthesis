@@ -6,9 +6,9 @@
 # -s 16           base tile size in pixels (16x16 px)
 # -w 48           window size in pixels (48x48 px)
 # -o 16           offset in window, in pixels (16x16 px), so in center of the 48x48 px window
-# -B 32           supertile band 32px widw (full 48px high) which will be suitably rotated
-# -D ...          'size' dimension of block. We'll be using our own so just set to grid/quilt size
-# -q ...          grid/quilt size
+# -B 32           supertile overlap band of 32px wide (full 48px high) which will be suitably rotated (2/3 overlap)
+# -D ...          default 'size' dimension of block. We'll be using our own so just set to grid/quilt size
+# -q ...          default grid/quilt size
 # -W uniform      uniform weighting of tiles. From inspection, this gives nice aesthetic results
 #
 
