@@ -6,7 +6,7 @@ POMS Config File
 
 | Field | Type | Size | Description | Required |
 |-------|------|------|-------------|----------|
-| `rule`  | Array | $C$ | Array of 4 element Array | required |
+| `rule`  | Array | $C$ | Array of 4 element Array, `[src_tile,dst_tile,idir,val]` | required |
 | `name`  | Array | $D$ | Array of strings | required |
 | `boundaryConditions` | Object | variable | boundary conditions | required |
 | `constraint` | Array | variable | Array of constraints | required |
